@@ -8,6 +8,65 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Crypt;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property int|null $server_id
+ * @property string $name
+ * @property string $github_repo
+ * @property string $github_branch
+ * @property string|null $github_webhook_id
+ * @property string|null $github_webhook_secret
+ * @property string|null $domain
+ * @property string $deploy_path
+ * @property string $php_version
+ * @property bool $run_migrations
+ * @property bool $run_seeders
+ * @property bool $run_npm_build
+ * @property bool $has_queue_worker
+ * @property string $status
+ * @property string|null $current_release
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Deployment> $deployments
+ * @property-read int|null $deployments_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\EnvVariable> $envVariables
+ * @property-read int|null $env_variables_count
+ * @property-read string $backups_path
+ * @property-read string $current_path
+ * @property-read string $logs_path
+ * @property-read string $releases_path
+ * @property-read string $shared_path
+ * @property-read string $status_color
+ * @property-read string $status_label
+ * @property-read string|null $url
+ * @property-read \App\Models\Deployment|null $lastDeployment
+ * @property-read \App\Models\Server|null $server
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereCurrentRelease($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereDeployPath($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereDomain($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereGithubBranch($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereGithubRepo($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereGithubWebhookId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereGithubWebhookSecret($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereHasQueueWorker($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project wherePhpVersion($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereRunMigrations($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereRunNpmBuild($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereRunSeeders($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereServerId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Project whereUserId($value)
+ * @mixin \Eloquent
+ */
 class Project extends Model
 {
     protected $fillable = [
@@ -27,6 +86,7 @@ class Project extends Model
         'has_queue_worker',
         'status',
         'current_release',
+        'env_file_path',
     ];
 
     protected $casts = [

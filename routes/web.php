@@ -1,7 +1,5 @@
 <?php
 
-// ── routes/web.php ───────────────────────────────────────────────
-
 use App\Http\Controllers\Auth\GithubController;
 use App\Livewire\Dashboard;
 use App\Livewire\Servers\ServerList;
@@ -23,23 +21,23 @@ Route::get('/auth/github/callback', [GithubController::class, 'callback'])->name
 require __DIR__ . '/auth.php';
 
 // Routes protégées
-// Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth'])->group(function () {
 
-//     // Dashboard
-//     Route::get('/', Dashboard::class)->name('dashboard');
+    // Dashboard
+    Route::get('/', Dashboard::class)->name('dashboard');
 
-//     // Serveurs
-//     Route::get('/servers', ServerList::class)->name('servers.index');
-//     Route::get('/servers/create', ServerCreate::class)->name('servers.create');
-//     Route::get('/servers/{server}', ServerShow::class)->name('servers.show');
+    // Serveurs
+    Route::get('/servers', ServerList::class)->name('servers.index');
+    Route::get('/servers/create', ServerCreate::class)->name('servers.create');
+    Route::get('/servers/{server}', ServerShow::class)->name('servers.show');
 
-//     // Projets
-//     Route::get('/projects/import', ProjectImport::class)->name('projects.import');
-//     Route::get('/projects/{project}', ProjectShow::class)->name('projects.show');
-//     Route::get('/projects/{project}/deploy', ProjectDeploy::class)->name('projects.deploy');
-//     Route::get('/projects/{project}/settings', ProjectSettings::class)->name('projects.settings');
+    // Projets
+    Route::get('/projects/import', ProjectImport::class)->name('projects.import');
+    Route::get('/projects/{project}', ProjectShow::class)->name('projects.show');
+    Route::get('/projects/{project}/deploy', ProjectDeploy::class)->name('projects.deploy');
+    Route::get('/projects/{project}/settings', ProjectSettings::class)->name('projects.settings');
 
-//     // Déploiements
-//     Route::get('/deployments/{deployment}', DeploymentShow::class)->name('deployments.show');
-//     Route::get('/deployments/{deployment}/logs', DeploymentLogs::class)->name('deployments.logs');
-// });
+    // Déploiements
+    Route::get('/deployments/{deployment}', DeploymentShow::class)->name('deployments.show');
+    Route::get('/deployments/{deployment}/logs', DeploymentLogs::class)->name('deployments.logs');
+});

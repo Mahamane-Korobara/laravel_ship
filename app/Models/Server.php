@@ -7,6 +7,43 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Crypt;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property string $name
+ * @property string $ip_address
+ * @property string $ssh_user
+ * @property int $ssh_port
+ * @property string $ssh_private_key
+ * @property string $php_version
+ * @property string $status
+ * @property string|null $last_error
+ * @property \Illuminate\Support\Carbon|null $last_connected_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read string $masked_ip
+ * @property-read string $status_color
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Project> $projects
+ * @property-read int|null $projects_count
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server whereIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server whereLastConnectedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server whereLastError($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server wherePhpVersion($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server whereSshPort($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server whereSshPrivateKey($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server whereSshUser($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Server whereUserId($value)
+ * @mixin \Eloquent
+ */
 class Server extends Model
 {
     protected $fillable = [

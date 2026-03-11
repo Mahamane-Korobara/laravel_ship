@@ -5,6 +5,42 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $project_id
+ * @property string $release_name
+ * @property string|null $git_commit
+ * @property string $git_branch
+ * @property string $triggered_by
+ * @property string $status
+ * @property string|null $log
+ * @property \Illuminate\Support\Carbon|null $started_at
+ * @property \Illuminate\Support\Carbon|null $finished_at
+ * @property int|null $duration_seconds
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read string $duration_human
+ * @property-read string $status_color
+ * @property-read string $status_label
+ * @property-read \App\Models\Project $project
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment whereDurationSeconds($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment whereFinishedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment whereGitBranch($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment whereGitCommit($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment whereLog($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment whereProjectId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment whereReleaseName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment whereStartedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment whereTriggeredBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Deployment whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class Deployment extends Model
 {
     protected $fillable = [
@@ -18,6 +54,7 @@ class Deployment extends Model
         'started_at',
         'finished_at',
         'duration_seconds',
+        'env_file_path',
     ];
 
     protected $casts = [
