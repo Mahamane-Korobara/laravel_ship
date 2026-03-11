@@ -8,9 +8,7 @@
             id="deployEnvFileInput"
             class="hidden">
         <label for="deployEnvFileInput" class="flex items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 bg-zinc-950 px-4 py-2 cursor-pointer hover:border-zinc-600 text-xs text-zinc-300 transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 7H4" />
-            </svg>
+            <x-icon name="lucide-arrow-left" class="w-4 h-4" />
             Ou importer un fichier .env
         </label>
     </div>

@@ -1,0 +1,5 @@
+# Lancer les 4 services
+php artisan serve                        # Terminal 1
+php artisan queue:listen redis --tries=1 # Terminal 2
+php artisan reverb:start                 # Terminal 3
+npm run dev   
