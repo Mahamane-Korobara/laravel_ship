@@ -6,6 +6,7 @@ use App\Livewire\Servers\ServerList;
 use App\Livewire\Servers\ServerCreate;
 use App\Livewire\Servers\ServerShow;
 use App\Livewire\Projects\ProjectImport;
+use App\Livewire\Projects\ProjectList;
 use App\Livewire\Projects\ProjectShow;
 use App\Livewire\Projects\ProjectDeploy;
 use App\Livewire\Projects\ProjectSettings;
@@ -32,6 +33,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/servers/{server}', ServerShow::class)->name('servers.show');
 
     // Projets
+    Route::get('/projects', ProjectList::class)->name('projects.index');
     Route::get('/projects/import', ProjectImport::class)->name('projects.import');
     Route::get('/projects/{project}', ProjectShow::class)->name('projects.show');
     Route::get('/projects/{project}/deploy', ProjectDeploy::class)->name('projects.deploy');

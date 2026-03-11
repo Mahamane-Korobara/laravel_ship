@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'LaravelShip') }}</title>
+    <link rel="icon" href="/Laravel.png" type="image/png">
+    <link rel="apple-touch-icon" href="/Laravel.png">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
     <style>
@@ -59,7 +61,7 @@
                             <x-icon name="lucide-layout-dashboard" class="w-[18px] h-[18px]" />
                             <span>Dashboard</span>
                         </a>
-                        <a href="{{ route('projects.import') }}" wire:navigate @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                        <a href="{{ route('projects.index') }}" wire:navigate @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('projects.*') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}">
                             <x-icon name="lucide-folder-git-2" class="w-[18px] h-[18px]" />
                             <span>Projets</span>
                         </a>
@@ -98,7 +100,7 @@
                     <x-icon name="lucide-layout-dashboard" class="w-[18px] h-[18px] flex-shrink-0" />
                     <span x-show="!collapsed">Dashboard</span>
                 </a>
-                <a href="{{ route('projects.import') }}" wire:navigate class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800" :class="collapsed ? 'justify-center' : ''">
+                <a href="{{ route('projects.index') }}" wire:navigate class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('projects.*') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}" :class="collapsed ? 'justify-center' : ''">
                     <x-icon name="lucide-folder-git-2" class="w-[18px] h-[18px] flex-shrink-0" />
                     <span x-show="!collapsed">Projets</span>
                 </a>
