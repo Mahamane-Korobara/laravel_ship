@@ -13,4 +13,10 @@ class SslService
                 "--non-interactive --agree-tos -m {$email} --redirect"
         );
     }
+
+    public function remove(string $domain): void
+    {
+        $this->ssh->exec("sudo certbot delete --cert-name {$domain} --non-interactive -q || true");
+        $this->ssh->exec("sudo rm -rf /etc/letsencrypt/live/{$domain} /etc/letsencrypt/archive/{$domain} /etc/letsencrypt/renewal/{$domain}.conf || true");
+    }
 }

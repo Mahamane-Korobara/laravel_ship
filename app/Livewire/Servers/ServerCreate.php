@@ -70,6 +70,27 @@ class ServerCreate extends Component
     {
         $this->validate();
 
+        $metrics = [];
+        $status = $this->testSuccess ? 'active' : 'inactive';
+        $lastConnectedAt = $this->testSuccess ? now() : null;
+        $lastError = null;
+
+        try {
+            $ssh = new SshService(
+                ip: $this->ip_address,
+                user: $this->ssh_user,
+                privateKey: $this->ssh_private_key,
+                port: $this->ssh_port,
+            );
+
+            $metrics = $ssh->getSystemMetrics();
+            $status = 'active';
+            $lastConnectedAt = now();
+            $ssh->disconnect();
+        } catch (\Exception $e) {
+            $lastError = $e->getMessage();
+        }
+
         $server = Server::create([
             'user_id'           => Auth::id(),
             'name'              => $this->name,
@@ -78,8 +99,12 @@ class ServerCreate extends Component
             'ssh_port'          => $this->ssh_port,
             'ssh_private_key'   => $this->ssh_private_key,
             'php_version'       => $this->php_version,
-            'status'            => $this->testSuccess ? 'active' : 'inactive',
-            'last_connected_at' => $this->testSuccess ? now() : null,
+            'vcpu'              => $metrics['vcpu'] ?? null,
+            'ram_mb'            => $metrics['ram_mb'] ?? null,
+            'disk_gb'           => $metrics['disk_gb'] ?? null,
+            'status'            => $status,
+            'last_error'        => $lastError,
+            'last_connected_at' => $lastConnectedAt,
         ]);
 
         session()->flash('success', "Serveur \"{$server->name}\" ajouté avec succès !");

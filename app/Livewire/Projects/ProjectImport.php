@@ -46,6 +46,12 @@ class ProjectImport extends Component
         }
     }
 
+    public function refreshRepos(): void
+    {
+        $this->search = '';
+        $this->loadRepos();
+    }
+
     public function importRepo(string $repoFullName): void
     {
         /** @var User $user */

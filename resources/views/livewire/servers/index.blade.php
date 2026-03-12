@@ -44,21 +44,21 @@
 
                     <div class="mt-4">
                         <h3 class="text-base font-semibold text-white">{{ $server->name }}</h3>
-                        <p class="mt-1 text-xs text-slate-400">{{ $server->masked_ip }}</p>
+                        <p class="mt-1 text-xs text-slate-400">{{ $server->masked_ip }} · PHP {{ $server->php_version }}</p>
                     </div>
 
                     <div class="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-400">
                         <div class="flex items-center gap-2">
-                            <x-icon name="lucide-globe" class="h-3.5 w-3.5" />
-                            {{ $server->masked_ip }}
+                            <x-icon name="lucide-cpu" class="h-3.5 w-3.5" />
+                            {{ $server->vcpu ? $server->vcpu.' vCPU' : 'vCPU —' }}
                         </div>
                         <div class="flex items-center gap-2">
-                            <x-icon name="lucide-server" class="h-3.5 w-3.5" />
-                            {{ $server->ssh_user }}:{{ $server->ssh_port }}
+                            <x-icon name="lucide-memory" class="h-3.5 w-3.5" />
+                            {{ $server->ram_mb ? round($server->ram_mb / 1024, 1).' GB RAM' : 'RAM —' }}
                         </div>
                         <div class="flex items-center gap-2">
-                            <x-icon name="lucide-file-text" class="h-3.5 w-3.5" />
-                            PHP {{ $server->php_version }}
+                            <x-icon name="lucide-hard-drive" class="h-3.5 w-3.5" />
+                            {{ $server->disk_gb ? $server->disk_gb.' GB' : 'Stockage —' }}
                         </div>
                         <div class="flex items-center gap-2">
                             <x-icon name="lucide-folder-git-2" class="h-3.5 w-3.5" />

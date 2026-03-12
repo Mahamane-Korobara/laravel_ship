@@ -69,7 +69,7 @@
                             <x-icon name="lucide-server" class="w-[18px] h-[18px]" />
                             <span>Serveurs</span>
                         </a>
-                        <a href="{{ route('dashboard') }}" wire:navigate @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                        <a href="{{ route('deployments.index') }}" wire:navigate @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('deployments.*') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}">
                             <x-icon name="lucide-rocket" class="w-[18px] h-[18px]" />
                             <span>Déploiements</span>
                         </a>
@@ -108,7 +108,7 @@
                     <x-icon name="lucide-server" class="w-[18px] h-[18px] flex-shrink-0" />
                     <span x-show="!collapsed">Serveurs</span>
                 </a>
-                <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800" :class="collapsed ? 'justify-center' : ''">
+                <a href="{{ route('deployments.index') }}" wire:navigate class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('deployments.*') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}" :class="collapsed ? 'justify-center' : ''">
                     <x-icon name="lucide-rocket" class="w-[18px] h-[18px] flex-shrink-0" />
                     <span x-show="!collapsed">Déploiements</span>
                 </a>

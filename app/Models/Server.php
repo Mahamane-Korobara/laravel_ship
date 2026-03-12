@@ -16,6 +16,9 @@ use Illuminate\Support\Facades\Crypt;
  * @property int $ssh_port
  * @property string $ssh_private_key
  * @property string $php_version
+ * @property int|null $vcpu
+ * @property int|null $ram_mb
+ * @property int|null $disk_gb
  * @property string $status
  * @property string|null $last_error
  * @property \Illuminate\Support\Carbon|null $last_connected_at
@@ -54,6 +57,9 @@ class Server extends Model
         'ssh_port',
         'ssh_private_key',
         'php_version',
+        'vcpu',
+        'ram_mb',
+        'disk_gb',
         'status',
         'last_error',
         'last_connected_at',
@@ -62,6 +68,9 @@ class Server extends Model
     protected $casts = [
         'last_connected_at' => 'datetime',
         'ssh_port'          => 'integer',
+        'vcpu'              => 'integer',
+        'ram_mb'            => 'integer',
+        'disk_gb'           => 'integer',
     ];
 
     //  Chiffrement IP 

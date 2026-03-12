@@ -10,8 +10,10 @@ use App\Livewire\Projects\ProjectList;
 use App\Livewire\Projects\ProjectShow;
 use App\Livewire\Projects\ProjectDeploy;
 use App\Livewire\Projects\ProjectSettings;
+use App\Livewire\Projects\ExternalProjectShow;
 use App\Livewire\Deployments\DeploymentShow;
 use App\Livewire\Deployments\DeploymentLogs;
+use App\Livewire\Deployments\DeploymentList;
 use Illuminate\Support\Facades\Route;
 
 // GitHub OAuth
@@ -35,11 +37,13 @@ Route::middleware(['auth'])->group(function () {
     // Projets
     Route::get('/projects', ProjectList::class)->name('projects.index');
     Route::get('/projects/import', ProjectImport::class)->name('projects.import');
+    Route::get('/projects/external/{server}/{project}', ExternalProjectShow::class)->name('projects.external.show');
     Route::get('/projects/{project}', ProjectShow::class)->name('projects.show');
     Route::get('/projects/{project}/deploy', ProjectDeploy::class)->name('projects.deploy');
     Route::get('/projects/{project}/settings', ProjectSettings::class)->name('projects.settings');
 
     // Déploiements
+    Route::get('/deployments', DeploymentList::class)->name('deployments.index');
     Route::get('/deployments/{deployment}', DeploymentShow::class)->name('deployments.show');
     Route::get('/deployments/{deployment}/logs', DeploymentLogs::class)->name('deployments.logs');
 });

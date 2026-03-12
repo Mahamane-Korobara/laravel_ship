@@ -93,4 +93,21 @@ class SshService
     {
         $this->ssh->disconnect();
     }
+
+    public function getSystemMetrics(): array
+    {
+        $vcpu = (int) trim($this->exec('nproc'));
+
+        $ramKb = (int) trim($this->exec("grep MemTotal /proc/meminfo | awk '{print $2}'"));
+        $ramMb = (int) round($ramKb / 1024);
+
+        $diskBytes = (int) trim($this->exec("df -B1 / | awk 'NR==2{print $2}'"));
+        $diskGb = (int) round($diskBytes / 1024 / 1024 / 1024);
+
+        return [
+            'vcpu' => $vcpu ?: null,
+            'ram_mb' => $ramMb ?: null,
+            'disk_gb' => $diskGb ?: null,
+        ];
+    }
 }

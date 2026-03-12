@@ -41,6 +41,14 @@ class ApacheService
         $this->ssh->exec("sudo systemctl reload apache2");
     }
 
+    public function removeProjectPhpFpmPool(string $name): void
+    {
+        $projectKey = $this->normalizeProjectKey($name);
+
+        $this->ssh->exec("for v in /etc/php/*/fpm; do ver=$(basename $(dirname $v)); sudo rm -f /etc/php/$ver/fpm/pool.d/{$projectKey}.conf; sudo systemctl reload php$ver-fpm || true; done");
+        $this->ssh->exec("sudo rm -f /run/php/php*-fpm-{$projectKey}.sock || true");
+    }
+
     //  Template VirtualHost
     private function ensureProjectPhpFpmPool(string $projectKey, string $phpVersion, string $systemUser): string
     {

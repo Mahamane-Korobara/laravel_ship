@@ -73,8 +73,26 @@ class ServerShow extends Component
 
     public function render()
     {
+        $remoteProjects = [];
+
+        try {
+            $ssh = new SshService(
+                ip: $this->server->ip_address,
+                user: $this->server->ssh_user,
+                privateKey: $this->server->ssh_private_key,
+                port: $this->server->ssh_port,
+            );
+
+            $output = trim($ssh->exec("ls -1 /var/www/projects 2>/dev/null || true"));
+            $remoteProjects = $output === '' ? [] : array_values(array_filter(explode("\n", $output)));
+            $ssh->disconnect();
+        } catch (\Throwable $e) {
+            // Ignore if SSH fails; UI will just show none.
+        }
+
         return view('livewire.servers.show', [
             'projects' => $this->server->projects()->with('lastDeployment')->get(),
+            'remoteProjects' => $remoteProjects,
         ]);
     }
 }

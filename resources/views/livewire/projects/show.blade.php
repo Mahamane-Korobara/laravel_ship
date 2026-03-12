@@ -74,6 +74,10 @@ $activeTab = request()->get('tab', 'overview');
                 <x-icon name="lucide-rocket" class="h-4 w-4" />
                 Déployer
             </x-ui.button>
+            <x-ui.button type="button" wire:click="deleteProject" wire:confirm="Attention : la suppression va effacer le projet, ses fichiers sur le VPS, le SSL et la base de données. Continuer ?" variant="danger" size="sm">
+                <x-icon name="lucide-trash-2" class="h-4 w-4" />
+                Supprimer
+            </x-ui.button>
         </div>
     </div>
 
