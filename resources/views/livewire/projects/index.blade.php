@@ -80,6 +80,11 @@
                                 <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium {{ $statusClass }}">
                                     {{ $item['status_label'] }}
                                 </span>
+                                @if (!empty($item['webhook_pending']))
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium bg-amber-500/15 text-amber-300 border-amber-500/30">
+                                        Nouveau commit
+                                    </span>
+                                @endif
                             @else
                                 <span class="inline-flex items-center gap-1.5">
                                     <x-icon name="lucide-server" class="h-3.5 w-3.5" />
@@ -106,9 +111,16 @@
                                 <x-icon name="lucide-folder-git-2" class="h-5 w-5" />
                             </div>
                             @if (!$isExternal)
-                                <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium {{ $statusClass }}">
-                                    {{ $item['status_label'] }}
-                                </span>
+                                <div class="flex flex-col items-end gap-2">
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium {{ $statusClass }}">
+                                        {{ $item['status_label'] }}
+                                    </span>
+                                    @if (!empty($item['webhook_pending']))
+                                        <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium bg-amber-500/15 text-amber-300 border-amber-500/30">
+                                            Nouveau commit
+                                        </span>
+                                    @endif
+                                </div>
                             @else
                                 <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium bg-slate-700/40 text-slate-300 border-slate-600/30">
                                     Externe

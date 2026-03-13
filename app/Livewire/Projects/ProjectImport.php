@@ -6,6 +6,8 @@ use App\Models\Project;
 use App\Models\User;
 use App\Services\GitHubService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -78,7 +80,44 @@ class ProjectImport extends Component
             'status'      => 'idle',
         ]);
 
+        if (!$this->createGithubWebhook($user, $project, $repoFullName)) {
+            $project->delete();
+            session()->flash('error', 'Import annulé : impossible de créer le webhook GitHub.');
+            return;
+        }
+
         $this->redirect(route('projects.deploy', $project), navigate: true);
+    }
+
+    private function createGithubWebhook(User $user, Project $project, string $repoFullName): bool
+    {
+        if (!$user->hasGithubConnected()) {
+            return false;
+        }
+
+        $secret = Str::random(40);
+
+        try {
+            $github = new GitHubService($user->github_token);
+            $webhookUrl = route('webhooks.github', [], true);
+            $hook = $github->createWebhook($repoFullName, $webhookUrl, $secret);
+
+            $hookId = $hook['id'] ?? null;
+            if (!$hookId) {
+                Log::warning("Webhook créé sans ID pour {$repoFullName}");
+                return false;
+            }
+
+            $project->update([
+                'github_webhook_id' => (string) $hookId,
+                'github_webhook_secret' => $secret,
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning("Erreur création webhook GitHub {$repoFullName}: {$e->getMessage()}");
+            return false;
+        }
     }
 
     public function getFilteredReposProperty(): array

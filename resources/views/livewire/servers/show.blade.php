@@ -5,6 +5,12 @@
         'error' => 'bg-rose-500/15 text-rose-300 border-rose-500/30',
         default => 'bg-slate-700/40 text-slate-300 border-slate-600/30',
     };
+    $statusLabel = match ($server->status) {
+        'active' => 'Actif',
+        'inactive' => 'Inactif',
+        'error' => 'Erreur',
+        default => 'Inconnu',
+    };
 @endphp
 
 <div class="space-y-6">
@@ -22,7 +28,7 @@
                 <div class="flex flex-wrap items-center gap-3">
                     <h1 class="text-2xl font-bold text-white">{{ $server->name }}</h1>
                     <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium {{ $statusClass }}">
-                        {{ ucfirst($server->status) }}
+                        {{ $statusLabel }}
                     </span>
                 </div>
                 <p class="mt-1 text-sm text-slate-400">{{ $server->masked_ip }}</p>
@@ -31,7 +37,7 @@
 
         <div class="flex flex-wrap items-center gap-2">
             <x-ui.button type="button" wire:click="testConnection" variant="primary">
-                Test SSH
+                Tester SSH
             </x-ui.button>
             <x-ui.button type="button" wire:click="delete" wire:confirm="Supprimer ce serveur ?" variant="danger" class="bg-transparent border border-rose-500/50 text-rose-300 hover:bg-rose-500/10">
                 <x-icon name="lucide-trash-2" class="h-4 w-4" />
@@ -62,7 +68,7 @@
                 </span>
             </div>
             <div class="mt-4 text-2xl font-semibold text-white">
-                {{ $server->ram_mb ? round($server->ram_mb / 1024, 1).' GB' : '—' }}
+                {{ $server->ram_mb ? round($server->ram_mb / 1024, 1).' Go' : '—' }}
             </div>
         </x-ui.card>
         <x-ui.card class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
@@ -72,7 +78,7 @@
                     <x-icon name="lucide-hard-drive" class="h-4 w-4" />
                 </span>
             </div>
-            <div class="mt-4 text-2xl font-semibold text-white">{{ $server->disk_gb ? $server->disk_gb.' GB' : '—' }}</div>
+            <div class="mt-4 text-2xl font-semibold text-white">{{ $server->disk_gb ? $server->disk_gb.' Go' : '—' }}</div>
         </x-ui.card>
         <x-ui.card class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
             <div class="flex items-center justify-between text-xs text-slate-400">

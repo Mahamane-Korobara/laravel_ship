@@ -31,6 +31,12 @@
                         'error' => 'bg-rose-500/15 text-rose-300 border-rose-500/30',
                         default => 'bg-slate-700/40 text-slate-300 border-slate-600/30',
                     };
+                    $statusLabel = match ($server->status) {
+                        'active' => 'Actif',
+                        'inactive' => 'Inactif',
+                        'error' => 'Erreur',
+                        default => 'Inconnu',
+                    };
                 @endphp
                 <a href="{{ route('servers.show', $server) }}" wire:navigate class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 transition hover:bg-slate-900/80">
                     <div class="flex items-start justify-between gap-3">
@@ -38,7 +44,7 @@
                             <x-icon name="lucide-server" class="h-5 w-5" />
                         </div>
                         <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium {{ $statusClass }}">
-                            {{ ucfirst($server->status) }}
+                            {{ $statusLabel }}
                         </span>
                     </div>
 
@@ -54,11 +60,11 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <x-icon name="lucide-memory" class="h-3.5 w-3.5" />
-                            {{ $server->ram_mb ? round($server->ram_mb / 1024, 1).' GB RAM' : 'RAM —' }}
+                            {{ $server->ram_mb ? round($server->ram_mb / 1024, 1).' Go RAM' : 'RAM —' }}
                         </div>
                         <div class="flex items-center gap-2">
                             <x-icon name="lucide-hard-drive" class="h-3.5 w-3.5" />
-                            {{ $server->disk_gb ? $server->disk_gb.' GB' : 'Stockage —' }}
+                            {{ $server->disk_gb ? $server->disk_gb.' Go' : 'Stockage —' }}
                         </div>
                         <div class="flex items-center gap-2">
                             <x-icon name="lucide-folder-git-2" class="h-3.5 w-3.5" />

@@ -14,6 +14,8 @@ class DeploymentService
     private ApacheService $apache;
     private SslService    $ssl;
     private array         $envConfig = [];
+    private bool          $aptUpdated = false;
+    private bool          $phpFpmRestarted = false;
 
     public function __construct(
         private Deployment $deployment,
@@ -58,6 +60,9 @@ class DeploymentService
             $this->step("⚙️  Écriture du fichier .env...");
             $this->writeEnv($deployPath, $releasePath);
 
+            $this->step("🔧 Vérification des dépendances projet...");
+            $this->ensureProjectDependencies();
+
             $this->step("🔗 Création des liens symboliques...");
             $this->createSymlinks($deployPath, $releasePath);
 
@@ -98,6 +103,14 @@ class DeploymentService
 
             $this->step("🔐 Ajustement des permissions Linux/Apache...");
             $this->fixFilesystemPermissions($deployPath, $releasePath, $server->ssh_user);
+
+            $this->step("🧾 Configuration logrotate...");
+            try {
+                $this->ensureLogrotate($deployPath, basename($deployPath), $server->ssh_user);
+                $this->log("  logrotate configuré ✓");
+            } catch (\Throwable $e) {
+                $this->log("  ⚠️ logrotate non configuré : " . substr($e->getMessage(), 0, 120));
+            }
 
             $this->step("🧹 Nettoyage des anciennes releases...");
             $this->cleanOldReleases($deployPath);
@@ -184,7 +197,7 @@ class DeploymentService
         $this->deployment->update(['status' => 'rolled_back']);
         $this->project->update(['current_release' => $targetRelease]);
 
-        $this->log("↩️  Rollback vers {$targetRelease} effectué");
+        $this->log("↩️  Retour arrière vers {$targetRelease} effectué");
     }
 
     //  Helpers privés 
@@ -386,6 +399,167 @@ class DeploymentService
         return false;
     }
 
+    private function ensureProjectDependencies(): void
+    {
+        if (!config('ship.auto_install_project_deps', true)) {
+            $this->log("  Auto-install des dépendances désactivé.");
+            return;
+        }
+
+        $this->assertSudoAvailable();
+
+        $dbConnection = strtolower((string) ($this->envConfig['DB_CONNECTION'] ?? ''));
+        $dbHost = strtolower((string) ($this->envConfig['DB_HOST'] ?? 'localhost'));
+        $redisHost = strtolower((string) ($this->envConfig['REDIS_HOST'] ?? 'localhost'));
+        $phpVersion = $this->project->php_version ?: '8.2';
+        $phpBin = $this->resolvePhpBinary($phpVersion);
+
+        $usesRedis = $this->envIsRedis('CACHE_STORE')
+            || $this->envIsRedis('CACHE_DRIVER')
+            || $this->envIsRedis('QUEUE_CONNECTION')
+            || $this->envIsRedis('SESSION_DRIVER')
+            || $this->envIsRedis('BROADCAST_DRIVER')
+            || $this->envIsRedis('BROADCAST_CONNECTION');
+
+        if ($usesRedis && $this->isLocalHost($redisHost)) {
+            $this->ensureSystemPackage('redis-server', 'redis-server');
+        }
+
+        if (in_array($dbConnection, ['mysql', 'mariadb'], true)) {
+            if ($this->isLocalHost($dbHost)) {
+                $this->ensureSystemPackage('mysql-server', 'mysql');
+            }
+            $this->ensurePhpExtension('pdo_mysql', 'mysql', $phpVersion, $phpBin);
+        }
+
+        if ($dbConnection === 'pgsql') {
+            if ($this->isLocalHost($dbHost)) {
+                $this->ensureSystemPackage('postgresql', 'postgresql');
+            }
+            $this->ensurePhpExtension('pdo_pgsql', 'pgsql', $phpVersion, $phpBin);
+        }
+
+        if ($dbConnection === 'sqlite') {
+            $this->ensureSystemPackage('sqlite3', null);
+            $this->ensurePhpExtension('pdo_sqlite', 'sqlite3', $phpVersion, $phpBin);
+        }
+
+        if ($usesRedis) {
+            $this->ensurePhpExtension('redis', 'redis', $phpVersion, $phpBin);
+        }
+
+        if ($this->project->run_npm_build) {
+            $this->ensureBinary('node', 'nodejs');
+            $this->ensureBinary('npm', 'npm');
+        }
+    }
+
+    private function envIsRedis(string $key): bool
+    {
+        $value = strtolower((string) ($this->envConfig[$key] ?? ''));
+        return $value === 'redis';
+    }
+
+    private function isLocalHost(string $host): bool
+    {
+        return $host === '' || $host === 'localhost' || $host === '127.0.0.1';
+    }
+
+    private function assertSudoAvailable(): void
+    {
+        try {
+            $this->ssh->exec('sudo -n true');
+        } catch (\Throwable $e) {
+            throw new RuntimeException(
+                'Sudo NOPASSWD requis pour installer des dépendances (apt/systemctl).'
+            );
+        }
+    }
+
+    private function ensureSystemPackage(string $package, ?string $service = null): void
+    {
+        $installed = trim($this->ssh->exec("dpkg -s {$package} >/dev/null 2>&1 && echo ok || echo missing"));
+
+        if ($installed !== 'ok') {
+            $this->log("  Installation {$package}...");
+            $this->aptUpdateOnce();
+            $this->ssh->exec("sudo -n apt-get install -y {$package}");
+            $this->log("  {$package} installé ✓");
+        } else {
+            $this->log("  {$package} déjà installé ✓");
+        }
+
+        if ($service) {
+            $this->ssh->exec("sudo -n systemctl enable --now {$service}");
+        }
+    }
+
+    private function ensureBinary(string $binary, string $package): void
+    {
+        $exists = trim($this->ssh->exec("command -v {$binary} >/dev/null 2>&1 && echo ok || echo missing"));
+
+        if ($exists === 'ok') {
+            $this->log("  {$binary} déjà présent ✓");
+            return;
+        }
+
+        $this->log("  Installation {$package} (pour {$binary})...");
+        $this->aptUpdateOnce();
+        $this->ssh->exec("sudo -n apt-get install -y {$package}");
+        $this->log("  {$package} installé ✓");
+    }
+
+    private function aptUpdateOnce(): void
+    {
+        if ($this->aptUpdated) {
+            return;
+        }
+
+        $this->ssh->exec('sudo -n apt-get update -y');
+        $this->aptUpdated = true;
+    }
+
+    private function resolvePhpBinary(string $version): string
+    {
+        $candidate = "php{$version}";
+        $hasCandidate = trim($this->ssh->exec("command -v {$candidate} >/dev/null 2>&1 && echo ok || echo missing"));
+
+        return $hasCandidate === 'ok' ? $candidate : 'php';
+    }
+
+    private function ensurePhpExtension(string $extension, string $packageSuffix, string $phpVersion, string $phpBin): void
+    {
+        $loaded = trim($this->ssh->exec("{$phpBin} -r \"echo extension_loaded('{$extension}') ? 'ok' : 'missing';\""));
+        if ($loaded === 'ok') {
+            $this->log("  ext {$extension} déjà chargée ✓");
+            return;
+        }
+
+        $package = "php{$phpVersion}-{$packageSuffix}";
+        $this->log("  Installation {$package} (ext {$extension})...");
+        $this->aptUpdateOnce();
+        $this->ssh->exec("sudo -n apt-get install -y {$package}");
+        $this->log("  {$package} installé ✓");
+
+        $this->restartPhpFpm($phpVersion);
+    }
+
+    private function restartPhpFpm(string $phpVersion): void
+    {
+        if ($this->phpFpmRestarted) {
+            return;
+        }
+
+        try {
+            $this->ssh->exec("sudo -n systemctl restart php{$phpVersion}-fpm");
+            $this->log("  php{$phpVersion}-fpm redémarré ✓");
+        } catch (\Throwable $e) {
+            $this->log("  ⚠️ Redémarrage php{$phpVersion}-fpm échoué.");
+        }
+
+        $this->phpFpmRestarted = true;
+    }
+
     /**
      * @return array<string, string>
      */
@@ -438,8 +612,8 @@ class DeploymentService
         $this->ssh->exec("rm -rf {$releasePath}/storage");
         $this->ssh->exec("ln -sfn {$deployPath}/shared/storage {$releasePath}/storage");
 
-        $this->log("  .env symlink ✓");
-        $this->log("  storage symlink ✓");
+        $this->log("  Lien symbolique .env ✓");
+        $this->log("  Lien symbolique storage ✓");
     }
 
     private function fixFilesystemPermissions(string $deployPath, string $releasePath, string $serverUser): void
@@ -562,6 +736,36 @@ class DeploymentService
         }
     }
 
+    private function ensureLogrotate(string $deployPath, string $projectKey, string $systemUser): void
+    {
+        $rotate = (int) config('deploy.logrotate_rotate', 14);
+        $systemUser = $systemUser !== '' ? $systemUser : 'www-data';
+
+        $logrotate = <<<CONF
+{$deployPath}/logs/*.log /var/log/apache2/{$projectKey}-error.log /var/log/apache2/{$projectKey}-access.log {
+    daily
+    rotate {$rotate}
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    create 0640 {$systemUser} www-data
+    sharedscripts
+    postrotate
+        systemctl reload apache2 > /dev/null 2>&1 || true
+    endscript
+}
+CONF;
+
+        $tmp = "/tmp/laravel-ship-{$projectKey}-logrotate.conf";
+        $target = "/etc/logrotate.d/laravel-ship-{$projectKey}";
+
+        $this->ssh->uploadContent($logrotate, $tmp);
+        $this->ssh->exec("sudo mv {$tmp} {$target}");
+        $this->ssh->exec("sudo chown root:root {$target}");
+        $this->ssh->exec("sudo chmod 644 {$target}");
+    }
     //  Broadcast log 
     private function step(string $message): void
     {

@@ -4,7 +4,7 @@
 <div x-data="{ ready:false }" x-init="requestAnimationFrame(()=>setTimeout(()=>ready=true,80))" class="space-y-6 max-w-6xl mx-auto">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between transition-all duration-500" :class="ready ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'">
         <div>
-            <h1 class="text-2xl sm:text-3xl font-bold text-white">Dashboard</h1>
+            <h1 class="text-2xl sm:text-3xl font-bold text-white">Tableau de bord</h1>
             <p class="mt-1 text-xs sm:text-sm text-gray-400">Vue d'ensemble de votre infrastructure</p>
         </div>
         <x-ui.button href="{{ route('projects.import') }}" wire:navigate variant="danger" size="lg">

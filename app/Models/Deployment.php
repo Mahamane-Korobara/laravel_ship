@@ -97,7 +97,7 @@ class Deployment extends Model
             'running'     => 'En cours',
             'pending'     => 'En attente',
             'failed'      => 'Échec',
-            'rolled_back' => 'Rollback',
+            'rolled_back' => 'Retour arrière',
             default       => 'Inconnu',
         };
     }

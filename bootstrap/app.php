@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,8 +14,16 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->validateCsrfTokens(except: [
-            'api/webhooks/github',
+            'webhooks/github',
         ]);
+        $middleware->web(append: [
+            \App\Http\Middleware\EnsureInfrastructure::class,
+        ]);
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('projects:backup-db')
+            ->dailyAt(config('deploy.backup_schedule', '02:00'))
+            ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

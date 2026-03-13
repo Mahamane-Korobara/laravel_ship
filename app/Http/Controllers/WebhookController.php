@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\ProjectWebhookEvent;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
@@ -44,17 +45,20 @@ class WebhookController extends Controller
 
         //  Traitement de l'événement 
         $event = $request->header('X-GitHub-Event');
+        $deliveryId = $request->header('X-GitHub-Delivery');
 
         match ($event) {
-            'push'    => $this->handlePush($project, $request),
+            'push'    => $this->handlePush($project, $request, $event, $deliveryId),
             'ping'    => Log::info("Webhook ping reçu pour {$project->name}"),
             default   => null,
         };
 
+        $this->storeEvent($project, $event, $deliveryId, $request);
+
         return response('OK', 200);
     }
 
-    private function handlePush(Project $project, Request $request): void
+    private function handlePush(Project $project, Request $request, ?string $event, ?string $deliveryId): void
     {
         $branch = str_replace('refs/heads/', '', $request->input('ref', ''));
         $commit = $request->input('head_commit.id');
@@ -65,13 +69,42 @@ class WebhookController extends Controller
         // (pas de déploiement automatique — prévu V2)
         Log::info("Push reçu sur {$project->name} — branch: {$branch} — commit: {$commit}");
 
-        // Marquer le projet comme ayant un nouveau commit disponible
-        // On stocke le dernier commit dans une metadata simple
+        if ($branch !== '' && $project->github_branch && $branch !== $project->github_branch) {
+            return;
+        }
+
+        if (!$commit) {
+            return;
+        }
+
         $project->update([
-            // On pourrait ajouter un champ 'pending_commit' mais
-            // en V1 on log juste l'info — le déploiement reste manuel
+            'webhook_pending' => true,
+            'webhook_last_commit_sha' => $commit,
+            'webhook_last_commit_message' => $message,
+            'webhook_last_commit_author' => $author,
+            'webhook_last_event' => $event,
+            'webhook_last_delivery_id' => $deliveryId,
+            'webhook_last_event_at' => now(),
         ]);
 
         // TODO V2 : dispatch(new RunDeployment(...)) si auto-deploy activé
+    }
+
+    private function storeEvent(Project $project, ?string $event, ?string $deliveryId, Request $request): void
+    {
+        $commit = $request->input('head_commit.id');
+        $message = $request->input('head_commit.message');
+        $author = $request->input('head_commit.author.name');
+        $ref = $request->input('ref');
+
+        ProjectWebhookEvent::create([
+            'project_id' => $project->id,
+            'event' => $event ?: 'unknown',
+            'delivery_id' => $deliveryId,
+            'ref' => $ref,
+            'commit_sha' => $commit,
+            'commit_message' => $message,
+            'author' => $author,
+        ]);
     }
 }

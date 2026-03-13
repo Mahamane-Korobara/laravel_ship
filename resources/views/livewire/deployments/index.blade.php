@@ -33,7 +33,7 @@
                 <option value="all">Tous</option>
                 <option value="success">Succès</option>
                 <option value="failed">Échoué</option>
-                <option value="rolled_back">Rollback</option>
+                <option value="rolled_back">Retour arrière</option>
             </select>
             <x-icon name="lucide-filter" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <x-icon name="lucide-chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
@@ -46,6 +46,11 @@
                 $statusBadge = $statusStyles[$deployment->status] ?? 'bg-slate-700/40 text-slate-300 border-slate-600/30';
                 $trigger = $deployment->triggered_by ?: 'manual';
                 $triggerBadge = $triggerStyles[$trigger] ?? 'bg-slate-500/15 text-slate-300 border-slate-500/30';
+                $triggerLabel = match ($trigger) {
+                    'manual' => 'Manuel',
+                    'webhook' => 'Webhook',
+                    default => ucfirst($trigger),
+                };
                 $projectName = $deployment->project?->name ?? 'Projet';
                 $commit = $deployment->git_commit ? substr($deployment->git_commit, 0, 7) : '—';
             @endphp
@@ -85,7 +90,7 @@
                         {{ $deployment->status_label }}
                     </span>
                     <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium {{ $triggerBadge }}">
-                        {{ ucfirst($trigger) }}
+                        {{ $triggerLabel }}
                     </span>
                 </div>
             </a>

@@ -43,6 +43,7 @@ class ProjectList extends Component
                 'updated_at' => $project->updated_at,
                 'status' => $project->status,
                 'status_label' => $project->status_label,
+                'webhook_pending' => $project->webhook_pending,
                 'route' => route('projects.show', $project),
                 'server_name' => $project->server?->name,
             ]);

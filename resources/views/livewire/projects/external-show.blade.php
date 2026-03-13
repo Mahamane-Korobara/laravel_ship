@@ -44,7 +44,7 @@
             <div class="mt-3 text-xl font-semibold text-white">{{ $info['branch'] ?? '—' }}</div>
         </x-ui.card>
         <x-ui.card class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-            <div class="text-xs text-slate-400">Commit</div>
+            <div class="text-xs text-slate-400">ID de commit</div>
             <div class="mt-3 text-xl font-semibold text-white">{{ $info['commit'] ?? '—' }}</div>
         </x-ui.card>
     </div>
@@ -55,7 +55,7 @@
     </x-ui.card>
 
     <x-ui.card class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-        <div class="text-xs text-slate-400">Remote Git</div>
+        <div class="text-xs text-slate-400">Dépôt distant</div>
         <div class="mt-2 font-mono text-sm text-slate-100">{{ $info['remote'] ?? '—' }}</div>
     </x-ui.card>
 </div>

@@ -82,6 +82,26 @@ class SshService
         }
     }
 
+    //  Télécharger un fichier via SFTP
+    public function downloadFile(string $remotePath, string $localPath): void
+    {
+        $sftp = new SFTP($this->ip, $this->port);
+        $key  = PublicKeyLoader::load($this->privateKey);
+
+        if (!$sftp->login($this->user, $key)) {
+            throw new Exception('Échec connexion SFTP');
+        }
+
+        $dir = dirname($localPath);
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new Exception("Impossible de créer le dossier local : {$dir}");
+        }
+
+        if (!$sftp->get($remotePath, $localPath)) {
+            throw new Exception("Impossible de télécharger le fichier : {$remotePath}");
+        }
+    }
+
     //  Vérifier si un répertoire existe 
     public function dirExists(string $path): bool
     {

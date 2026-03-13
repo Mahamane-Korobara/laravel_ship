@@ -1,20 +1,21 @@
 @php
-    $latestSuccessRelease = $project->deployments()->where('status', 'success')->latest()->value('release_name');
     $statusVariant = match ($deployment->status) {
         'success' => 'success',
         'running', 'pending' => 'info',
         'failed' => 'danger',
+        'rolled_back' => 'warning',
         default => 'default',
     };
     $statusDot = match ($deployment->status) {
         'success' => 'bg-emerald-400',
         'running', 'pending' => 'bg-blue-400',
         'failed' => 'bg-rose-400',
+        'rolled_back' => 'bg-amber-400',
         default => 'bg-slate-400',
     };
 @endphp
 
-<div class="space-y-6" @if (!$completed) wire:poll.2s="refreshDeploymentState" @endif>
+<div class="space-y-6" @if (!$completed) wire:poll.5s="refreshDeploymentState" @endif>
     <div class="flex items-center justify-between">
         <a href="{{ route('projects.show', $project) }}" wire:navigate class="inline-flex items-center gap-2 text-sm text-[#8ea2c5] hover:text-white">
             <x-icon name="lucide-arrow-left" class="h-4 w-4" />
@@ -54,11 +55,18 @@
                     Visiter
                 </x-ui.button>
             @endif
-            @if ($latestSuccessRelease)
-                <x-ui.button type="button" wire:click="rollback('{{ $latestSuccessRelease }}')" variant="danger" size="sm">
-                    <x-icon name="lucide-rotate-ccw" class="h-4 w-4" />
-                    Rollback
-                </x-ui.button>
+            @if (!empty($rollbackReleases))
+                <div class="flex items-center gap-2">
+                    <select wire:model="rollbackTarget" class="h-8 rounded-lg border border-[#2f3f61] bg-[#0b1426] px-2 text-xs text-white">
+                        @foreach ($rollbackReleases as $release)
+                            <option value="{{ $release['name'] }}">{{ $release['label'] }}</option>
+                        @endforeach
+                    </select>
+                    <x-ui.button type="button" wire:click="rollbackSymlink" wire:confirm="Confirmer le retour arrière vers {{ $rollbackTarget }} ?" variant="danger" size="sm">
+                        <x-icon name="lucide-rotate-ccw" class="h-4 w-4" />
+                        Retour arrière
+                    </x-ui.button>
+                </div>
             @endif
         </div>
     </div>
@@ -73,7 +81,7 @@
             </div>
         </div>
         <div x-data x-ref="terminal" x-init="$nextTick(()=>{$refs.terminal.scrollTop=$refs.terminal.scrollHeight})" x-effect="$nextTick(()=>{$refs.terminal.scrollTop=$refs.terminal.scrollHeight})" class="min-h-[320px] max-h-[520px] overflow-auto p-4 font-mono text-xs leading-6 text-[#a5b4fc]">
-            @forelse ($logs as $line)<div>{{ $line }}</div>@empty<div class="text-[#8ea2c5]">Waiting deployment logs...</div>@endforelse
+            @forelse ($logs as $line)<div>{{ $line }}</div>@empty<div class="text-[#8ea2c5]">En attente des logs de déploiement...</div>@endforelse
         </div>
     </section>
 

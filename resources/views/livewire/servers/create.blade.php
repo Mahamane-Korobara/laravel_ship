@@ -20,15 +20,15 @@
                 @error('ip_address')<p class="text-xs text-rose-300 mt-1">{{ $message }}</p>@enderror
             </div>
             <div>
-                <label class="text-xs text-[#8ea2c5]">SSH User</label>
+                <label class="text-xs text-[#8ea2c5]">Utilisateur SSH</label>
                 <input wire:model.defer="ssh_user" placeholder="deployer" class="mt-1 w-full rounded-xl border border-[#2f3f61] bg-[#0b1426] px-3 py-2"/>
             </div>
             <div>
-                <label class="text-xs text-[#8ea2c5]">SSH Port</label>
+                <label class="text-xs text-[#8ea2c5]">Port SSH</label>
                 <input wire:model.defer="ssh_port" type="number" placeholder="22" class="mt-1 w-full rounded-xl border border-[#2f3f61] bg-[#0b1426] px-3 py-2"/>
             </div>
             <div class="md:col-span-2">
-                <label class="text-xs text-[#8ea2c5]">SSH Private Key</label>
+                <label class="text-xs text-[#8ea2c5]">Clé privée SSH</label>
                 <textarea wire:model.defer="ssh_private_key" rows="6" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" class="mt-1 w-full rounded-xl border border-[#2f3f61] bg-[#0b1426] px-3 py-2"></textarea>
                 @error('ssh_private_key')<p class="text-xs text-rose-300 mt-1">{{ $message }}</p>@enderror
             </div>
@@ -46,7 +46,7 @@
         </div>
         <div class="flex flex-wrap gap-2">
             <x-ui.button type="button" wire:click="testConnection" variant="primary">
-                Test SSH
+                Tester SSH
             </x-ui.button>
             <x-ui.button variant="danger">
                 Ajouter le serveur

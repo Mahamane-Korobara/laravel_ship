@@ -21,7 +21,7 @@ $statusBg = match ($project->status) {
 'failed' => 'bg-red-500/20 text-red-400 border border-red-500/30',
 default => 'bg-slate-700/40 text-slate-400 border border-slate-600/30',
 };
-$activeTab = request()->get('tab', 'overview');
+$activeTab = $activeTab ?? request()->get('tab', 'overview');
 @endphp
 
 <div class="space-y-6">
@@ -45,6 +45,18 @@ $activeTab = request()->get('tab', 'overview');
                         <span class="h-1.5 w-1.5 rounded-full {{ $statusDot }}"></span>
                         {{ $project->status_label }}
                     </span>
+                    @if ($project->github_webhook_id)
+                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                            Webhook actif
+                        </span>
+                    @endif
+                    @if ($project->webhook_pending)
+                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+                            Nouveau commit disponible
+                        </span>
+                    @endif
                 </div>
                 <div class="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-slate-400 sm:text-sm">
                     <span class="inline-flex items-center gap-1.5">
@@ -69,6 +81,25 @@ $activeTab = request()->get('tab', 'overview');
                 <x-icon name="lucide-external-link" class="h-4 w-4" />
                 Visiter
             </x-ui.button>
+            @endif
+            @if (!$project->github_webhook_id)
+            <x-ui.button type="button" wire:click="repairWebhook" variant="default" size="sm">
+                <x-icon name="lucide-refresh-cw" class="h-4 w-4" />
+                Réparer webhook
+            </x-ui.button>
+            @endif
+            @if (!empty($rollbackReleases))
+            <div class="flex items-center gap-2">
+                <select wire:model="rollbackTarget" class="h-9 rounded-lg border border-[#2f3f61] bg-[#0b1426] px-2 text-xs text-white">
+                    @foreach ($rollbackReleases as $release)
+                        <option value="{{ $release['name'] }}">{{ $release['label'] }}</option>
+                    @endforeach
+                </select>
+                <x-ui.button type="button" wire:click="rollbackSymlink" wire:confirm="Confirmer le retour arrière vers {{ $rollbackTarget }} ?" variant="danger" size="sm">
+                    <x-icon name="lucide-rotate-ccw" class="h-4 w-4" />
+                    Retour arrière
+                </x-ui.button>
+            </div>
             @endif
             <x-ui.button href="{{ route('projects.deploy', $project) }}" wire:navigate variant="indigo" size="sm">
                 <x-icon name="lucide-rocket" class="h-4 w-4" />
@@ -107,6 +138,14 @@ $activeTab = request()->get('tab', 'overview');
                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40' }}">
             Variables .env
         </a>
+        <a href="{{ route('projects.show', ['project' => $project, 'tab' => 'backups']) }}"
+            wire:navigate
+            class="whitespace-nowrap px-3 py-2 text-sm font-medium rounded-t-lg transition sm:px-4
+               {{ $activeTab === 'backups'
+                   ? 'border border-b-0 border-slate-700 bg-slate-800/60 text-white'
+                   : 'text-slate-400 hover:text-white hover:bg-slate-800/40' }}">
+            Sauvegardes
+        </a>
         <a href="{{ route('projects.settings', $project) }}"
             wire:navigate
             class="whitespace-nowrap px-3 py-2 text-sm font-medium rounded-t-lg transition text-slate-400 hover:text-white hover:bg-slate-800/40 sm:px-4">
@@ -125,7 +164,7 @@ $activeTab = request()->get('tab', 'overview');
             </div>
             <div class="divide-y divide-slate-800 text-xs sm:text-sm">
                 @foreach ([
-                ['Repository', $project->github_repo, true],
+                ['Dépôt Git', $project->github_repo, true],
                 ['Branche', $project->github_branch, false],
                 ['PHP', $project->php_version, false],
                 ['Domaine', $project->domain ?: 'sans domaine', true],
@@ -147,9 +186,9 @@ $activeTab = request()->get('tab', 'overview');
             <div class="divide-y divide-slate-800 text-xs sm:text-sm">
                 @foreach ([
                 ['Migrations', $project->run_migrations],
-                ['Seeders', $project->run_seeders],
-                ['npm build', $project->run_npm_build],
-                ['Queue Worker', $project->has_queue_worker],
+                ['Données d\'initialisation', $project->run_seeders],
+                ['Compilation NPM', $project->run_npm_build],
+                ['Worker de file', $project->has_queue_worker],
                 ] as [$label, $enabled])
                 <div class="flex items-center justify-between gap-4 px-5 py-3.5">
                     <span class="text-slate-400">{{ $label }}</span>
@@ -192,7 +231,7 @@ $activeTab = request()->get('tab', 'overview');
                 <div>
                     <p class="text-sm font-semibold text-white">{{ $deployment->release_name }}</p>
                     <p class="text-xs text-slate-400 mt-0.5">
-                        {{ $deployment->git_branch }} · {{ $deployment->git_commit ? substr($deployment->git_commit, 0, 8) : 'no-commit' }}
+                        {{ $deployment->git_branch }} · {{ $deployment->git_commit ? substr($deployment->git_commit, 0, 8) : 'aucun commit' }}
                     </p>
                 </div>
             </div>
@@ -215,6 +254,47 @@ $activeTab = request()->get('tab', 'overview');
     {{-- Tab: Variables .env --}}
     @if ($activeTab === 'env')
     <livewire:projects.project-env :project="$project" />
+    @endif
+
+    {{-- Tab: Sauvegardes --}}
+    @if ($activeTab === 'backups')
+    <div class="rounded-xl border border-slate-800 bg-[#131525] overflow-hidden">
+        <div class="flex flex-col gap-3 px-5 py-4 border-b border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="text-base font-semibold text-white">Sauvegardes MySQL</h2>
+                <p class="text-xs text-slate-400">Fichiers .sql.gz stockés dans /backups</p>
+            </div>
+            <x-ui.button type="button" wire:click="loadBackups" variant="default" size="sm">
+                <x-icon name="lucide-refresh-cw" class="h-4 w-4" />
+                Actualiser
+            </x-ui.button>
+        </div>
+        <div class="divide-y divide-slate-800">
+            @if ($backupsError)
+                <div class="px-5 py-4 text-sm text-rose-300">{{ $backupsError }}</div>
+            @elseif (!$backupsLoaded)
+                <div class="px-5 py-4 text-sm text-slate-400">Chargement...</div>
+            @elseif (empty($backups))
+                <div class="px-5 py-8 text-center text-sm text-slate-500">Aucune sauvegarde trouvée.</div>
+            @else
+                @foreach ($backups as $backup)
+                <div class="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-white">{{ $backup['name'] }}</p>
+                        <p class="text-xs text-slate-500">{{ $backup['date'] }}</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-xs text-slate-400">{{ $backup['size'] }}</span>
+                        <x-ui.button type="button" wire:click="downloadBackup('{{ $backup['name'] }}')" variant="default" size="sm">
+                            <x-icon name="lucide-download" class="h-4 w-4" />
+                            Télécharger
+                        </x-ui.button>
+                    </div>
+                </div>
+                @endforeach
+            @endif
+        </div>
+    </div>
     @endif
 
 </div>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\GithubController;
+use App\Http\Controllers\WebhookController;
 use App\Livewire\Dashboard;
 use App\Livewire\Servers\ServerList;
 use App\Livewire\Servers\ServerCreate;
@@ -14,11 +15,18 @@ use App\Livewire\Projects\ExternalProjectShow;
 use App\Livewire\Deployments\DeploymentShow;
 use App\Livewire\Deployments\DeploymentLogs;
 use App\Livewire\Deployments\DeploymentList;
+use App\Livewire\System\InfrastructureSetup;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 
 // GitHub OAuth
 Route::get('/auth/github', [GithubController::class, 'redirect'])->name('auth.github');
 Route::get('/auth/github/callback', [GithubController::class, 'callback'])->name('auth.github.callback');
+
+// Webhook GitHub (hors CSRF)
+Route::post('/webhooks/github', [WebhookController::class, 'github'])
+    ->name('webhooks.github')
+    ->withoutMiddleware([VerifyCsrfToken::class]);
 
 // Auth Breeze
 require __DIR__ . '/auth.php';
@@ -46,4 +54,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/deployments', DeploymentList::class)->name('deployments.index');
     Route::get('/deployments/{deployment}', DeploymentShow::class)->name('deployments.show');
     Route::get('/deployments/{deployment}/logs', DeploymentLogs::class)->name('deployments.logs');
+
+    // Infrastructure
+    Route::get('/system/infrastructure', InfrastructureSetup::class)->name('system.infrastructure');
 });

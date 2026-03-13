@@ -38,7 +38,7 @@
                     Cliquez pour importer ou glissez votre fichier <span class="font-mono text-blue-600">.env</span>
                 </p>
                 <p class="text-xs text-gray-500 mt-1">
-                    Taille maximum: 1 MB
+                    Taille maximale : 1 Mo
                 </p>
             </label>
         </div>

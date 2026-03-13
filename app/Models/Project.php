@@ -17,6 +17,13 @@ use Illuminate\Support\Facades\Crypt;
  * @property string $github_branch
  * @property string|null $github_webhook_id
  * @property string|null $github_webhook_secret
+ * @property bool $webhook_pending
+ * @property string|null $webhook_last_commit_sha
+ * @property string|null $webhook_last_commit_message
+ * @property string|null $webhook_last_commit_author
+ * @property string|null $webhook_last_event
+ * @property string|null $webhook_last_delivery_id
+ * @property \Illuminate\Support\Carbon|null $webhook_last_event_at
  * @property string|null $domain
  * @property string $deploy_path
  * @property string $php_version
@@ -77,6 +84,13 @@ class Project extends Model
         'github_branch',
         'github_webhook_id',
         'github_webhook_secret',
+        'webhook_pending',
+        'webhook_last_commit_sha',
+        'webhook_last_commit_message',
+        'webhook_last_commit_author',
+        'webhook_last_event',
+        'webhook_last_delivery_id',
+        'webhook_last_event_at',
         'domain',
         'deploy_path',
         'php_version',
@@ -94,6 +108,8 @@ class Project extends Model
         'run_seeders'      => 'boolean',
         'run_npm_build'    => 'boolean',
         'has_queue_worker' => 'boolean',
+        'webhook_pending' => 'boolean',
+        'webhook_last_event_at' => 'datetime',
     ];
 
     //  Chiffrement webhook secret 
@@ -188,5 +204,10 @@ class Project extends Model
     public function envVariables(): HasMany
     {
         return $this->hasMany(EnvVariable::class);
+    }
+
+    public function webhookEvents(): HasMany
+    {
+        return $this->hasMany(ProjectWebhookEvent::class)->latest();
     }
 }

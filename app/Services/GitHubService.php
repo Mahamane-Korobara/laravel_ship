@@ -34,7 +34,7 @@ class GitHubService
             ]);
 
             if (!$response->successful()) {
-                throw new \Exception('GitHub API error: ' . $response->body());
+                throw new \Exception('Erreur API GitHub : ' . $response->body());
             }
 
             $data  = $response->json();

@@ -121,9 +121,9 @@
         <div class="grid grid-cols-1 gap-3 xs:grid-cols-2 sm:grid-cols-4">
             @foreach ([
             ['run_migrations', 'Migrations'],
-            ['run_seeders', 'Seeders'],
-            ['run_npm_build', 'npm build'],
-            ['has_queue_worker', 'Queue Worker'],
+            ['run_seeders', 'Données d\'initialisation'],
+            ['run_npm_build', 'Compilation NPM'],
+            ['has_queue_worker', 'Worker de file'],
             ] as [$field, $label])
             <button
                 wire:click="$toggle('{{ $field }}')"
