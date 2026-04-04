@@ -16,9 +16,16 @@ window.Pusher = Pusher;
 const reverbKey = import.meta.env.VITE_REVERB_APP_KEY;
 
 if (reverbKey) {
-    const scheme = import.meta.env.VITE_REVERB_SCHEME ?? (window.location.protocol === 'https:' ? 'https' : 'http');
+    // Determine the scheme (https or http)
+    const isHttps = window.location.protocol === 'https:';
+    const scheme = import.meta.env.VITE_REVERB_SCHEME ?? (isHttps ? 'https' : 'http');
+
+    // Get host, default to current hostname
     const host = import.meta.env.VITE_REVERB_HOST ?? window.location.hostname;
-    const port = import.meta.env.VITE_REVERB_PORT ?? (scheme === 'https' ? 443 : 80);
+
+    // Determine port based on scheme
+    const defaultPort = scheme === 'https' ? 443 : 80;
+    const port = import.meta.env.VITE_REVERB_PORT ?? defaultPort;
 
     window.Echo = new Echo({
         broadcaster: 'reverb',
