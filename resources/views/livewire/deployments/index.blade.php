@@ -26,18 +26,11 @@
                 class="w-full rounded-xl border border-slate-800 bg-slate-900/60 pl-9 pr-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50" />
         </div>
 
-        <div class="relative">
-            <select
-                wire:model.live="status"
-                class="appearance-none rounded-xl border border-slate-800 bg-slate-900/60 px-10 py-2 text-sm text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50">
-                <option value="all">Tous</option>
-                <option value="success">Succès</option>
-                <option value="failed">Échoué</option>
-                <option value="rolled_back">Retour arrière</option>
-            </select>
-            <x-icon name="lucide-filter" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <x-icon name="lucide-chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-        </div>
+        <x-ui.select
+            wire:model.live="status"
+            icon="lucide-filter"
+            :options="['all' => 'Tous', 'success' => 'Succès', 'failed' => 'Échoué', 'rolled_back' => 'Retour arrière']"
+        />
     </div>
 
     <div class="space-y-3">

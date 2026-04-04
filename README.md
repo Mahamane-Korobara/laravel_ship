@@ -1,59 +1,120 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Laravel Ship
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Plateforme PaaS auto-hebergee pour automatiser le cycle de vie des projets Laravel.
 
-## About Laravel
+## Objectif
+- Gerer des projets Laravel sur des VPS clients.
+- Executer des deploiements reproductibles via SSH.
+- Centraliser les logs et l'historique des deploiements.
+- Integrer les webhooks GitHub (V1: notification + suivi des commits).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Stack
+- Laravel 12 + Livewire (UI reactive cote serveur)
+- MySQL (stockage principal)
+- Laravel Queues (jobs de deploiement)
+- Laravel Reverb/Echo (logs temps reel si active)
+- Tailwind CSS + Vite
+- Alpine.js (UI interactions)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Architecture technique (vue d'ensemble)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 1) Presentation (UI)
+- Livewire components dans `app/Livewire/*`
+- Vues dans `resources/views/livewire/*`
+- UI components reutilisables dans `resources/views/components/ui/*`
 
-## Learning Laravel
+Pages principales:
+- Tableau de bord: `app/Livewire/Dashboard.php`
+- Projets: `app/Livewire/Projects/*`
+- Serveurs: `app/Livewire/Servers/*`
+- Deploiements: `app/Livewire/Deployments/*`
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### 2) Domain / Models
+Models cles:
+- `User` : compte admin
+- `Server` : VPS client (IP, SSH, metrics)
+- `Project` : projet Laravel (repo, branche, domaine, options)
+- `Deployment` : un deploiement (statut, log, duree)
+- `EnvVariable` : variables .env par projet
+- `ProjectWebhookEvent` : evenements GitHub recus
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 3) Services (orchestration)
+- `SshService` : connexion SSH + execution/streaming + SFTP
+- `DeploymentService` : pipeline complet de deploiement
+- `ApacheService` : creation VirtualHost + pool PHP-FPM dedie
+- `SslService` : certbot letsencrypt
+- `GitHubService` : repos, branches, webhooks
 
-## Laravel Sponsors
+### 4) Jobs + Events
+- `RunDeployment` (Job): lance le deploiement en file de queue
+- `DeploymentLogReceived` (Event): broadcast des logs en temps reel
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### 5) Webhooks
+- `WebhookController@github` : validation signature + enregistrement evenements
 
-### Premium Partners
+## Flux de deploiement (V1)
+1. L'utilisateur lance un deploiement depuis l'UI.
+2. Un `Deployment` est cree puis un `RunDeployment` est queue.
+3. `DeploymentService` execute:
+   - Creation structure (releases/shared/current)
+   - Clone du repo GitHub
+   - Ecriture .env (shared + symlink)
+   - Composer install
+   - Migrations / seeders (si actives)
+   - Optimisations Laravel (config/route/view cache)
+   - Permissions, logrotate
+   - VirtualHost Apache + PHP-FPM pool dedie
+   - Certificat SSL (si domaine pointe)
+4. Les logs sont stockes dans `deployments.log` et diffuses en temps reel.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Structure des dossiers
 
-## Contributing
+```
+app/
+  Livewire/                # Pages et logique UI
+  Models/                  # Entites (User, Project, Deployment...)
+  Services/                # SSH, Apache, SSL, GitHub, Deployment
+  Jobs/                    # RunDeployment
+  Events/                  # DeploymentLogReceived
+resources/
+  views/
+    livewire/              # Vues Livewire
+    components/ui/         # UI components (select, terminal, button, ...)
+  js/                      # bootstrap.js, app.js
+routes/
+  web.php                  # Routes UI
+  api.php                  # API si besoin
+  auth.php                 # Auth
+  console.php              # Commands
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Base de donnees (tables principales)
+- users
+- servers
+- projects
+- deployments
+- env_variables
+- project_webhook_events
+- jobs / cache (Laravel)
 
-## Code of Conduct
+Migrations: `database/migrations/*`
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Temps reel (logs)
+- Channel: `deployment.{id}`
+- Event: `DeploymentLogReceived`
+- UI: terminal reutilisable (`resources/views/components/ui/terminal.blade.php`)
 
-## Security Vulnerabilities
+## Securite
+- IP VPS et cle SSH chiffrees en base (`Server`)
+- Secret webhook GitHub chiffre (`Project`)
+- SSH par cle privee uniquement
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Developpement local
+- `php artisan serve`
+- `php artisan queue:work` (deploiements)
+- `php artisan reverb:start` (si logs temps reel)
+- `npm run dev`
 
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Notes
+- Les webhooks GitHub stockent les commits; le deploiement auto sera gere en V2.
+- Les pools PHP-FPM sont isoles par projet et version PHP.

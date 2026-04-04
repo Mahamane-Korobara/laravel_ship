@@ -34,14 +34,12 @@
             </div>
             <div>
                 <label class="text-xs text-[#8ea2c5]">Version PHP</label>
-                <select wire:model.defer="php_version" class="mt-1 w-full rounded-xl border border-[#2f3f61] bg-[#0b1426] px-3 py-2">
-                    <option value="7.4">7.4</option>
-                    <option value="8.0">8.0</option>
-                    <option value="8.1">8.1</option>
-                    <option value="8.2">8.2</option>
-                    <option value="8.3">8.3</option>
-                    <option value="8.4">8.4</option>
-                </select>
+                <div class="mt-1">
+                    <x-ui.select
+                        wire:model.defer="php_version"
+                        :options="['7.4' => '7.4', '8.0' => '8.0', '8.1' => '8.1', '8.2' => '8.2', '8.3' => '8.3', '8.4' => '8.4']"
+                    />
+                </div>
             </div>
         </div>
         <div class="flex flex-wrap gap-2">

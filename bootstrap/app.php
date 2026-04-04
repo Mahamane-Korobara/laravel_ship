@@ -17,7 +17,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhooks/github',
         ]);
         $middleware->web(append: [
-            \App\Http\Middleware\EnsureInfrastructure::class,
         ]);
     })
     ->withSchedule(function (Schedule $schedule): void {

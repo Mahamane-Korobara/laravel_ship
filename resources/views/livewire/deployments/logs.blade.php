@@ -19,17 +19,7 @@
         </div>
     </div>
 
-    <section class="rounded-2xl border border-[#1f2a44] bg-[#0b1020]/80 overflow-hidden">
-        <div class="flex items-center justify-between border-b border-[#1f2a44] px-4 py-3">
-            <div class="flex items-center gap-3">
-                <span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span>
-                <span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
-                <span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
-                <span class="ml-3 text-xs text-[#8ea2c5]">{{ $deployment->project->name }} — bash</span>
-            </div>
-        </div>
-        <div x-ref="terminal" class="max-h-[70vh] overflow-auto p-4 font-mono text-xs leading-6 text-[#a5b4fc] whitespace-pre-wrap">
-            {{ $deployment->log ?: 'Aucun log disponible.' }}
-        </div>
-    </section>
+    <x-ui.terminal :title="$deployment->project->name . ' — bash'" minHeight="240px" maxHeight="70vh">
+        {{ $deployment->log ?: 'Aucun log disponible.' }}
+    </x-ui.terminal>
 </div>

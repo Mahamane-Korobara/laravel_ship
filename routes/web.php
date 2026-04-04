@@ -15,7 +15,6 @@ use App\Livewire\Projects\ExternalProjectShow;
 use App\Livewire\Deployments\DeploymentShow;
 use App\Livewire\Deployments\DeploymentLogs;
 use App\Livewire\Deployments\DeploymentList;
-use App\Livewire\System\InfrastructureSetup;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 
@@ -55,6 +54,4 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/deployments/{deployment}', DeploymentShow::class)->name('deployments.show');
     Route::get('/deployments/{deployment}/logs', DeploymentLogs::class)->name('deployments.logs');
 
-    // Infrastructure
-    Route::get('/system/infrastructure', InfrastructureSetup::class)->name('system.infrastructure');
 });

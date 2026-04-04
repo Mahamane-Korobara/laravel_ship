@@ -11,15 +11,19 @@
     @livewireStyles
     <style>
         body { background:#020617; color:#e2e8f0; }
+        .ship-scroll { scrollbar-color: #334155 #0b1020; scrollbar-width: thin; }
         .ship-scroll::-webkit-scrollbar{width:8px;height:8px}
-        .ship-scroll::-webkit-scrollbar-thumb{background:#1f2937;border-radius:999px}
-        .ship-scroll::-webkit-scrollbar-track{background:transparent}
+        .ship-scroll::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#334155,#1e293b);border-radius:999px;border:2px solid #0b1020}
+        .ship-scroll::-webkit-scrollbar-track{background:#0b1020}
     </style>
 </head>
 <body class="h-full antialiased">
 <div
     x-data="{ collapsed: localStorage.getItem('ship_collapsed') === '1', mobileOpen: false }"
-    x-init="$watch('collapsed', v => localStorage.setItem('ship_collapsed', v ? '1' : '0'))"
+    x-init="
+        $watch('collapsed', v => localStorage.setItem('ship_collapsed', v ? '1' : '0'));
+        document.addEventListener('livewire:navigated', () => { mobileOpen = false; });
+    "
     class="min-h-screen bg-slate-950 text-slate-200"
 >
     <div class="lg:hidden fixed top-0 left-0 right-0 h-14 bg-slate-950 border-b border-slate-800 z-50 flex items-center justify-between px-4">
@@ -57,30 +61,26 @@
                     </div>
 
                     <nav class="flex-1 px-3 py-4 space-y-0.5">
-                        <a href="{{ route('dashboard') }}" wire:navigate @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('dashboard') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}">
+                        <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('dashboard') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}">
                             <x-icon name="lucide-layout-dashboard" class="w-[18px] h-[18px]" />
                             <span>Tableau de bord</span>
                         </a>
-                        <a href="{{ route('projects.index') }}" wire:navigate @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('projects.*') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}">
+                        <a href="{{ route('projects.index') }}" wire:navigate class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('projects.*') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}">
                             <x-icon name="lucide-folder-git-2" class="w-[18px] h-[18px]" />
                             <span>Projets</span>
                         </a>
-                        <a href="{{ route('servers.index') }}" wire:navigate @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('servers.*') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}">
+                        <a href="{{ route('servers.index') }}" wire:navigate class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('servers.*') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}">
                             <x-icon name="lucide-server" class="w-[18px] h-[18px]" />
                             <span>Serveurs</span>
                         </a>
-                        <a href="{{ route('deployments.index') }}" wire:navigate @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('deployments.*') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}">
+                        <a href="{{ route('deployments.index') }}" wire:navigate class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('deployments.*') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}">
                             <x-icon name="lucide-rocket" class="w-[18px] h-[18px]" />
                             <span>Déploiements</span>
-                        </a>
-                        <a href="{{ route('system.infrastructure') }}" wire:navigate @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('system.infrastructure') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}">
-                            <x-icon name="lucide-settings" class="w-[18px] h-[18px]" />
-                            <span>Infrastructure</span>
                         </a>
                     </nav>
 
                     <div class="px-3 pb-4">
-                        <a href="{{ route('projects.import') }}" wire:navigate @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-md bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors">
+                        <a href="{{ route('projects.import') }}" wire:navigate class="flex items-center gap-3 px-3 py-2.5 rounded-md bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors">
                             <x-icon name="lucide-plus" class="w-4 h-4" />
                             <span>Nouveau projet</span>
                         </a>
@@ -115,10 +115,6 @@
                 <a href="{{ route('deployments.index') }}" wire:navigate class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('deployments.*') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}" :class="collapsed ? 'justify-center' : ''">
                     <x-icon name="lucide-rocket" class="w-[18px] h-[18px] flex-shrink-0" />
                     <span x-show="!collapsed">Déploiements</span>
-                </a>
-                <a href="{{ route('system.infrastructure') }}" wire:navigate class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors {{ request()->routeIs('system.infrastructure') ? 'bg-red-600/10 text-red-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' }}" :class="collapsed ? 'justify-center' : ''">
-                    <x-icon name="lucide-settings" class="w-[18px] h-[18px] flex-shrink-0" />
-                    <span x-show="!collapsed">Infrastructure</span>
                 </a>
             </nav>
 

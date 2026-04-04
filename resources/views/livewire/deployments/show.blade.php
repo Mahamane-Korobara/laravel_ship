@@ -1,18 +1,18 @@
 @php
-    $statusVariant = match ($deployment->status) {
-        'success' => 'success',
-        'running', 'pending' => 'info',
-        'failed' => 'danger',
-        'rolled_back' => 'warning',
-        default => 'default',
-    };
-    $statusDot = match ($deployment->status) {
-        'success' => 'bg-emerald-400',
-        'running', 'pending' => 'bg-blue-400',
-        'failed' => 'bg-rose-400',
-        'rolled_back' => 'bg-amber-400',
-        default => 'bg-slate-400',
-    };
+$statusVariant = match ($deployment->status) {
+'success' => 'success',
+'running', 'pending' => 'info',
+'failed' => 'danger',
+'rolled_back' => 'warning',
+default => 'default',
+};
+$statusDot = match ($deployment->status) {
+'success' => 'bg-emerald-400',
+'running', 'pending' => 'bg-blue-400',
+'failed' => 'bg-rose-400',
+'rolled_back' => 'bg-amber-400',
+default => 'bg-slate-400',
+};
 @endphp
 
 <div class="space-y-6" @if (!$completed) wire:poll.5s="refreshDeploymentState" @endif>
@@ -22,9 +22,9 @@
             Retour au projet
         </a>
         @if(!$completed)
-            <x-ui.button type="button" wire:click="cancelDeployment" variant="danger" size="sm">
-                Annuler
-            </x-ui.button>
+        <x-ui.button type="button" wire:click="cancelDeployment" variant="danger" size="sm">
+            Annuler
+        </x-ui.button>
         @endif
     </div>
 
@@ -50,18 +50,19 @@
                 {{ $deployment->status_label }}
             </x-ui.badge>
             @if ($project->url)
-                <x-ui.button href="{{ $project->url }}" target="_blank" variant="default" size="sm">
-                    <x-icon name="lucide-globe" class="h-4 w-4" />
-                    Visiter
-                </x-ui.button>
+            <x-ui.button href="{{ $project->url }}" target="_blank" variant="default" size="sm">
+                <x-icon name="lucide-globe" class="h-4 w-4" />
+                Visiter
+            </x-ui.button>
             @endif
             @if (!empty($rollbackReleases))
                 <div class="flex items-center gap-2">
-                    <select wire:model="rollbackTarget" class="h-8 rounded-lg border border-[#2f3f61] bg-[#0b1426] px-2 text-xs text-white">
-                        @foreach ($rollbackReleases as $release)
-                            <option value="{{ $release['name'] }}">{{ $release['label'] }}</option>
-                        @endforeach
-                    </select>
+                    <x-ui.select
+                        wire:model="rollbackTarget"
+                        size="sm"
+                        class="w-56"
+                        :options="collect($rollbackReleases)->pluck('label', 'name')->toArray()"
+                    />
                     <x-ui.button type="button" wire:click="rollbackSymlink" wire:confirm="Confirmer le retour arrière vers {{ $rollbackTarget }} ?" variant="danger" size="sm">
                         <x-icon name="lucide-rotate-ccw" class="h-4 w-4" />
                         Retour arrière
@@ -71,18 +72,12 @@
         </div>
     </div>
 
-    <section class="rounded-2xl border border-[#1f2a44] bg-[#0b1020]/80 overflow-hidden">
-        <div class="flex items-center justify-between border-b border-[#1f2a44] px-4 py-3">
-            <div class="flex items-center gap-3">
-                <span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span>
-                <span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
-                <span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
-                <span class="ml-3 text-xs text-[#8ea2c5]">{{ $project->name }} — bash</span>
-            </div>
-        </div>
-        <div x-data x-ref="terminal" x-init="$nextTick(()=>{$refs.terminal.scrollTop=$refs.terminal.scrollHeight})" x-effect="$nextTick(()=>{$refs.terminal.scrollTop=$refs.terminal.scrollHeight})" class="min-h-[320px] max-h-[520px] overflow-auto p-4 font-mono text-xs leading-6 text-[#a5b4fc]">
-            @forelse ($logs as $line)<div>{{ $line }}</div>@empty<div class="text-[#8ea2c5]">En attente des logs de déploiement...</div>@endforelse
-        </div>
-    </section>
+    <x-ui.terminal :title="$project->name . ' — bash'" minHeight="320px" maxHeight="520px">
+        @forelse ($logs as $line)
+        <div>{{ $line }}</div>
+        @empty
+        <div class="text-[#8ea2c5]">En attente des logs de déploiement...</div>
+        @endforelse
+    </x-ui.terminal>
 
 </div>

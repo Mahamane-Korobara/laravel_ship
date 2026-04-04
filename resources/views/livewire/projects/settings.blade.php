@@ -108,12 +108,10 @@
             </div>
             <div>
                 <label class="block text-xs text-slate-400 mb-1.5">Serveur cible</label>
-                <select wire:model.defer="server_id"
-                    class="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50">
-                    @foreach ($servers as $server)
-                    <option value="{{ $server->id }}" @selected((int) $server_id === (int) $server->id)>{{ $server->name }}</option>
-                    @endforeach
-                </select>
+                <x-ui.select
+                    wire:model.defer="server_id"
+                    :options="$servers->pluck('name', 'id')->toArray()"
+                />
             </div>
         </div>
 

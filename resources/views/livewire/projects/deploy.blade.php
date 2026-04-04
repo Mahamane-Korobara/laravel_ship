@@ -5,9 +5,35 @@
             <h2 class="text-lg font-semibold">Configuration de base</h2>
             <div class="grid gap-4 md:grid-cols-2">
                 <div><label class="text-xs text-[#8ea2c5]">Nom du projet</label><input wire:model.defer="name" class="mt-1 w-full rounded-xl border border-[#2f3f61] bg-[#0b1426] px-3 py-2"/>@error('name')<p class="text-xs text-rose-300 mt-1">{{ $message }}</p>@enderror</div>
-                <div><label class="text-xs text-[#8ea2c5]">Serveur</label><select wire:model.defer="server_id" class="mt-1 w-full rounded-xl border border-[#2f3f61] bg-[#0b1426] px-3 py-2"><option value="0">Choisir...</option>@foreach($servers as $server)<option value="{{ $server->id }}">{{ $server->name }} ({{ $server->masked_ip }})</option>@endforeach</select>@error('server_id')<p class="text-xs text-rose-300 mt-1">{{ $message }}</p>@enderror</div>
-                <div><label class="text-xs text-[#8ea2c5]">Branche Git</label><div class="mt-1 flex gap-2"><select wire:model.defer="github_branch" class="w-full rounded-xl border border-[#2f3f61] bg-[#0b1426] px-3 py-2">@foreach($branches as $branch)<option value="{{ $branch }}">{{ $branch }}</option>@endforeach</select><button type="button" wire:click="loadBranches" class="ship-btn">Synchroniser</button></div></div>
-                <div><label class="text-xs text-[#8ea2c5]">PHP</label><select wire:model.defer="php_version" class="mt-1 w-full rounded-xl border border-[#2f3f61] bg-[#0b1426] px-3 py-2"><option value="7.4">7.4</option><option value="8.0">8.0</option><option value="8.1">8.1</option><option value="8.2">8.2</option><option value="8.3">8.3</option><option value="8.4">8.4</option></select></div>
+                <div>
+                    <label class="text-xs text-[#8ea2c5]">Serveur</label>
+                    <div class="mt-1">
+                        <x-ui.select
+                            wire:model.defer="server_id"
+                            :options="collect($servers)->mapWithKeys(fn($s) => [$s->id => $s->name . ' (' . $s->masked_ip . ')'])->toArray()"
+                        />
+                    </div>
+                    @error('server_id')<p class="text-xs text-rose-300 mt-1">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label class="text-xs text-[#8ea2c5]">Branche Git</label>
+                    <div class="mt-1 flex gap-2">
+                        <x-ui.select
+                            wire:model.defer="github_branch"
+                            :options="collect($branches)->mapWithKeys(fn($b) => [$b => $b])->toArray()"
+                        />
+                        <button type="button" wire:click="loadBranches" class="ship-btn">Synchroniser</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs text-[#8ea2c5]">PHP</label>
+                    <div class="mt-1">
+                        <x-ui.select
+                            wire:model.defer="php_version"
+                            :options="['7.4' => '7.4', '8.0' => '8.0', '8.1' => '8.1', '8.2' => '8.2', '8.3' => '8.3', '8.4' => '8.4']"
+                        />
+                    </div>
+                </div>
                 <div class="md:col-span-2"><label class="text-xs text-[#8ea2c5]">Domaine</label><input wire:model.defer="domain" placeholder="api.example.com" class="mt-1 w-full rounded-xl border border-[#2f3f61] bg-[#0b1426] px-3 py-2"/></div>
             </div>
             <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 text-sm">
