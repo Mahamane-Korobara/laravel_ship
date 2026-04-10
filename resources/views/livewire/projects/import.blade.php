@@ -24,9 +24,15 @@
                     <p class="text-xs text-slate-400">{{ $repoCount }} dépôts disponibles</p>
                 </div>
             </div>
-            <button wire:click="refreshRepos" class="inline-flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-white">
-                <x-icon name="lucide-refresh-cw" class="h-4 w-4" />
-                Actualiser
+            <button wire:click="refreshRepos" wire:loading.attr="disabled" wire:target="refreshRepos" class="inline-flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-white disabled:opacity-60 disabled:cursor-not-allowed">
+                <span wire:loading.remove wire:target="refreshRepos" class="inline-flex items-center gap-2">
+                    <x-icon name="lucide-refresh-cw" class="h-4 w-4" />
+                    Actualiser
+                </span>
+                <span wire:loading wire:target="refreshRepos" class="inline-flex items-center gap-2">
+                    <x-ui.spinner size="sm" />
+                    Actualisation...
+                </span>
             </button>
         </div>
     </x-ui.card>
@@ -92,9 +98,15 @@
                             @if ($isImported)
                                 <x-ui.badge variant="success">Importé</x-ui.badge>
                             @else
-                                <x-ui.button type="button" wire:click="importRepo('{{ $repo['full_name'] }}')" variant="secondary" size="sm" class="border border-slate-700/60 bg-slate-900/60 text-slate-200 hover:bg-slate-800">
-                                    <x-icon name="lucide-arrow-right" class="h-4 w-4" />
-                                    Importer
+                                <x-ui.button type="button" wire:click="importRepo('{{ $repo['full_name'] }}')" variant="secondary" size="sm" wire:loading.attr="disabled" wire:target="importRepo" class="border border-slate-700/60 bg-slate-900/60 text-slate-200 hover:bg-slate-800">
+                                    <span wire:loading.remove wire:target="importRepo" class="inline-flex items-center gap-2">
+                                        <x-icon name="lucide-arrow-right" class="h-4 w-4" />
+                                        Importer
+                                    </span>
+                                    <span wire:loading wire:target="importRepo" class="inline-flex items-center gap-2">
+                                        <x-ui.spinner size="sm" />
+                                        Import...
+                                    </span>
                                 </x-ui.button>
                             @endif
                         </div>

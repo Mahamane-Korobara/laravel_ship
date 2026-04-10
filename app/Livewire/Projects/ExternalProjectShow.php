@@ -3,7 +3,7 @@
 namespace App\Livewire\Projects;
 
 use App\Models\Server;
-use App\Services\SshService;
+use App\Services\RemoteRunnerFactory;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -22,7 +22,7 @@ class ExternalProjectShow extends Component
 
         $this->server = $server;
         $this->project = $project;
-        $this->path = "/var/www/projects/{$project}";
+        $this->path = "/containers/{$project}";
 
         $this->loadInfo();
     }
@@ -30,27 +30,19 @@ class ExternalProjectShow extends Component
     private function loadInfo(): void
     {
         try {
-            $ssh = new SshService(
-                ip: $this->server->ip_address,
-                user: $this->server->ssh_user,
-                privateKey: $this->server->ssh_private_key,
-                port: $this->server->ssh_port,
-            );
+            $ssh = app(RemoteRunnerFactory::class)->forServer($this->server);
 
-            $basePath = trim($ssh->exec("if [ -d '{$this->path}/current' ]; then echo '{$this->path}/current'; else echo '{$this->path}'; fi"));
-            $size = trim($ssh->exec("du -sh {$this->path} 2>/dev/null | awk '{print $1}'")) ?: '—';
-            $lastMod = trim($ssh->exec("stat -c %y {$this->path} 2>/dev/null | cut -d'.' -f1")) ?: '—';
-            $branch = trim($ssh->exec("git -C {$basePath} rev-parse --abbrev-ref HEAD 2>/dev/null || echo '—'"));
-            $commit = trim($ssh->exec("git -C {$basePath} rev-parse --short HEAD 2>/dev/null || echo '—'"));
-            $remote = trim($ssh->exec("git -C {$basePath} config --get remote.origin.url 2>/dev/null || echo '—'"));
+            $inspect = trim($ssh->exec("docker inspect -f '{{.Config.Image}}|{{.State.Status}}|{{.Created}}' {$this->project} 2>/dev/null || echo '—|—|—'"));
+            [$image, $status, $created] = array_pad(explode('|', $inspect, 3), 3, '—');
 
             $this->info = [
-                'basePath' => $basePath,
-                'size' => $size,
-                'lastMod' => $lastMod,
-                'branch' => $branch,
-                'commit' => $commit,
-                'remote' => $remote,
+                'basePath' => $this->path,
+                'size' => '—',
+                'lastMod' => $created,
+                'branch' => '—',
+                'commit' => '—',
+                'remote' => $image,
+                'status' => $status,
             ];
 
             $ssh->disconnect();

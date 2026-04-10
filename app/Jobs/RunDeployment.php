@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Deployment;
 use App\Models\Project;
 use App\Services\DeploymentService;
+use App\Services\RemoteRunnerFactory;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -26,7 +27,13 @@ class RunDeployment implements ShouldQueue
 
     public function handle(): void
     {
-        $service = new DeploymentService($this->deployment, $this->project);
+        $runner = null;
+
+        if ($this->project->server) {
+            $runner = app(RemoteRunnerFactory::class)->forServer($this->project->server);
+        }
+
+        $service = new DeploymentService($this->deployment, $this->project, $runner);
         $service->run();
     }
 

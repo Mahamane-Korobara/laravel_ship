@@ -16,7 +16,7 @@ class ServerCreate extends Component
     public string $ssh_user       = 'deployer';
     public int    $ssh_port       = 22;
     public string $ssh_private_key = '';
-    public string $php_version    = '8.2';
+    public array  $labels         = [];
 
     public bool    $testing     = false;
     public ?string $testResult  = null;
@@ -30,7 +30,7 @@ class ServerCreate extends Component
             'ssh_user'         => 'required|string|max:100',
             'ssh_port'         => 'required|integer|min:1|max:65535',
             'ssh_private_key'  => 'required|string',
-            'php_version'      => 'required|in:7.4,8.0,8.1,8.2,8.3,8.4',
+            'labels' => 'nullable|array',
         ];
     }
 
@@ -44,9 +44,24 @@ class ServerCreate extends Component
     {
         $this->validate();
         $this->testing    = true;
-        $this->testResult = null;
+        $this->testResult = '';
+        $this->testSuccess = false;
+        $buffer = '';
+        $append = function (string $line) use (&$buffer) {
+            $buffer .= $line . "\n";
+            $this->stream('testResult', $line . "\n");
+        };
+        $runStreaming = function (SshService $ssh, string $command) use ($append): string {
+            $output = '';
+            $ssh->execStreaming($command, function (string $line) use (&$output, $append) {
+                $output .= $line . "\n";
+                $append($line);
+            });
+            return trim($output);
+        };
 
         try {
+            $append('→ Connexion SSH...');
             $ssh = new SshService(
                 ip: $this->ip_address,
                 user: $this->ssh_user,
@@ -54,12 +69,35 @@ class ServerCreate extends Component
                 port: $this->ssh_port,
             );
 
-            $phpOutput = $ssh->exec("php{$this->php_version} -v | head -1");
-            $this->testResult  = "Connexion réussie ✓\n" . trim($phpOutput);
-            $this->testSuccess = true;
+            $append('→ Vérification Docker...');
+            $dockerVersion = $runStreaming($ssh, "docker --version 2>/dev/null || true");
+            if ($dockerVersion === '') {
+                $dockerVersion = $runStreaming($ssh, "sudo -n docker --version 2>/dev/null || true");
+            }
+
+            $dockerBin = $dockerVersion !== '' ? 'docker' : 'sudo -n docker';
+            if ($dockerVersion === '') {
+                $append('Docker: non detecte');
+            }
+
+            $append('→ Vérification Docker Compose...');
+            $composeVersion = $runStreaming($ssh, "{$dockerBin} compose version 2>/dev/null || true");
+            if ($composeVersion === '') {
+                $append('Docker Compose: non detecte');
+            }
+
+            $append('→ Listing des conteneurs...');
+            $psOutput = $runStreaming($ssh, "{$dockerBin} ps --format 'table {{.Names}}\\t{{.Status}}' 2>/dev/null || true");
+            if ($psOutput === '') {
+                $append('Aucun conteneur en cours.');
+            }
+            $append('Connexion réussie ✓');
+            $this->testResult  = trim($buffer);
+            $this->testSuccess = $dockerVersion !== '' && $composeVersion !== '';
             $ssh->disconnect();
         } catch (\Exception $e) {
-            $this->testResult  = 'Erreur : ' . $e->getMessage();
+            $append('Erreur : ' . $e->getMessage());
+            $this->testResult  = trim($buffer);
             $this->testSuccess = false;
         } finally {
             $this->testing = false;
@@ -98,13 +136,13 @@ class ServerCreate extends Component
             'ssh_user'          => $this->ssh_user,
             'ssh_port'          => $this->ssh_port,
             'ssh_private_key'   => $this->ssh_private_key,
-            'php_version'       => $this->php_version,
             'vcpu'              => $metrics['vcpu'] ?? null,
             'ram_mb'            => $metrics['ram_mb'] ?? null,
             'disk_gb'           => $metrics['disk_gb'] ?? null,
             'status'            => $status,
             'last_error'        => $lastError,
             'last_connected_at' => $lastConnectedAt,
+            'labels' => $this->labels ?: null,
         ]);
 
         session()->flash('success', "Serveur \"{$server->name}\" ajouté avec succès !");

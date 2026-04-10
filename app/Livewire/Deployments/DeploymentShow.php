@@ -5,7 +5,7 @@ namespace App\Livewire\Deployments;
 
 use App\Models\Deployment;
 use App\Models\Project;
-use App\Services\SshService;
+use App\Services\RemoteRunnerFactory;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -25,6 +25,9 @@ class DeploymentShow extends Component
     public array  $rollbackReleases = [];
     public string $rollbackTarget = '';
 
+    public string $docker_logs = '';
+    public string $container_status = '';
+
     public function mount(Deployment $deployment): void
     {
         abort_if($deployment->project->user_id !== Auth::id(), 403);
@@ -42,6 +45,8 @@ class DeploymentShow extends Component
         $this->completed = in_array($deployment->status, ['success', 'failed', 'rolled_back']);
 
         $this->loadRollbackReleases();
+        $this->docker_logs = $deployment->docker_logs ?? '';
+        $this->container_status = $deployment->container_status ?? '';
     }
 
     #[On('echo:deployment.{deploymentId},log.received')]
@@ -94,12 +99,7 @@ class DeploymentShow extends Component
         $server = $project->server;
 
         try {
-            $ssh = new SshService(
-                ip: $server->ip_address,
-                user: $server->ssh_user,
-                privateKey: $server->ssh_private_key,
-                port: $server->ssh_port,
-            );
+            $ssh = app(RemoteRunnerFactory::class)->forServer($server);
 
             $deployPath = $project->deploy_path;
             $releasePath = "{$deployPath}/releases/{$this->rollbackTarget}";
@@ -112,6 +112,7 @@ class DeploymentShow extends Component
             }
 
             $ssh->exec("ln -sfn {$releasePath} {$deployPath}/current");
+            $ssh->exec("if [ -f {$releasePath}/docker-compose.yml ]; then cd {$releasePath} && docker compose up -d --remove-orphans; fi");
             $ssh->disconnect();
 
             $now = now();
@@ -121,7 +122,7 @@ class DeploymentShow extends Component
                 'git_branch'       => $project->github_branch,
                 'triggered_by'     => 'manual',
                 'status'           => 'rolled_back',
-                'log'              => "Retour arrière vers {$this->rollbackTarget} (lien symbolique current mis à jour).",
+                'log'              => "Retour arrière vers {$this->rollbackTarget} (lien symbolique current mis à jour, conteneur relancé).",
                 'started_at'       => $now,
                 'finished_at'      => $now,
                 'duration_seconds' => 1,
@@ -170,6 +171,17 @@ class DeploymentShow extends Component
 
     public function render()
     {
-        return view('livewire.deployments.show');
+        return view('livewire.deployments.show', [
+            'deployment' => $this->deployment,
+            'project' => $this->project,
+            'logs' => $this->logs,
+            'status' => $this->status,
+            'completed' => $this->completed,
+            'deploymentId' => $this->deploymentId,
+            'rollbackReleases' => $this->rollbackReleases,
+            'rollbackTarget' => $this->rollbackTarget,
+            'docker_logs' => $this->docker_logs,
+            'container_status' => $this->container_status,
+        ]);
     }
 }

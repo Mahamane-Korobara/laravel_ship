@@ -56,9 +56,17 @@
                 </div>
                 <button
                     wire:click="uploadEnvFile"
-                    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
-                    <x-icon name="lucide-upload" class="w-4 h-4 mr-2" />
-                    Charger le fichier
+                    wire:loading.attr="disabled"
+                    wire:target="uploadEnvFile"
+                    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed">
+                    <span wire:loading.remove wire:target="uploadEnvFile" class="inline-flex items-center">
+                        <x-icon name="lucide-upload" class="w-4 h-4 mr-2" />
+                        Charger le fichier
+                    </span>
+                    <span wire:loading wire:target="uploadEnvFile" class="inline-flex items-center gap-2">
+                        <x-ui.spinner size="sm" />
+                        Envoi...
+                    </span>
                 </button>
             </div>
         </div>

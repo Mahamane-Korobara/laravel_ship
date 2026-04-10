@@ -22,8 +22,12 @@ default => 'bg-slate-400',
             Retour au projet
         </a>
         @if(!$completed)
-        <x-ui.button type="button" wire:click="cancelDeployment" variant="danger" size="sm">
-            Annuler
+        <x-ui.button type="button" wire:click="cancelDeployment" variant="danger" size="sm" wire:loading.attr="disabled" wire:target="cancelDeployment">
+            <span wire:loading.remove wire:target="cancelDeployment">Annuler</span>
+            <span wire:loading wire:target="cancelDeployment" class="inline-flex items-center gap-2">
+                <x-ui.spinner size="sm" />
+                Annulation...
+            </span>
         </x-ui.button>
         @endif
     </div>
@@ -63,9 +67,15 @@ default => 'bg-slate-400',
                         class="w-56"
                         :options="collect($rollbackReleases)->pluck('label', 'name')->toArray()"
                     />
-                    <x-ui.button type="button" wire:click="rollbackSymlink" wire:confirm="Confirmer le retour arrière vers {{ $rollbackTarget }} ?" variant="danger" size="sm">
-                        <x-icon name="lucide-rotate-ccw" class="h-4 w-4" />
-                        Retour arrière
+                    <x-ui.button type="button" wire:click="rollbackSymlink" wire:confirm="Confirmer le retour arrière vers {{ $rollbackTarget }} ?" variant="danger" size="sm" wire:loading.attr="disabled" wire:target="rollbackSymlink">
+                        <span wire:loading.remove wire:target="rollbackSymlink" class="inline-flex items-center gap-2">
+                            <x-icon name="lucide-rotate-ccw" class="h-4 w-4" />
+                            Retour arrière
+                        </span>
+                        <span wire:loading wire:target="rollbackSymlink" class="inline-flex items-center gap-2">
+                            <x-ui.spinner size="sm" />
+                            Rollback...
+                        </span>
                     </x-ui.button>
                 </div>
             @endif

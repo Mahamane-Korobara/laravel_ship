@@ -2,11 +2,11 @@
     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
             <h1 class="text-2xl font-bold text-white">Serveurs</h1>
-            <p class="text-sm text-slate-400">Gérez vos VPS et leur configuration</p>
+            <p class="text-sm text-slate-400">Gérez vos serveurs Docker et leur configuration</p>
         </div>
         <x-ui.button href="{{ route('servers.create') }}" wire:navigate variant="danger" size="sm">
             <x-icon name="lucide-plus" class="h-4 w-4" />
-            Ajouter un VPS
+            Ajouter un serveur
         </x-ui.button>
     </div>
 
@@ -50,7 +50,7 @@
 
                     <div class="mt-4">
                         <h3 class="text-base font-semibold text-white">{{ $server->name }}</h3>
-                        <p class="mt-1 text-xs text-slate-400">{{ $server->masked_ip }} · PHP {{ $server->php_version }}</p>
+                        <p class="mt-1 text-xs text-slate-400">{{ $server->masked_ip }} · Docker prêt</p>
                     </div>
 
                     <div class="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-400">

@@ -83,9 +83,15 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
             </x-ui.button>
             @endif
             @if (!$project->github_webhook_id)
-            <x-ui.button type="button" wire:click="repairWebhook" variant="default" size="sm">
-                <x-icon name="lucide-refresh-cw" class="h-4 w-4" />
-                Réparer webhook
+            <x-ui.button type="button" wire:click="repairWebhook" variant="default" size="sm" wire:loading.attr="disabled" wire:target="repairWebhook">
+                <span wire:loading.remove wire:target="repairWebhook" class="inline-flex items-center gap-2">
+                    <x-icon name="lucide-refresh-cw" class="h-4 w-4" />
+                    Réparer webhook
+                </span>
+                <span wire:loading wire:target="repairWebhook" class="inline-flex items-center gap-2">
+                    <x-ui.spinner size="sm" />
+                    Réparation...
+                </span>
             </x-ui.button>
             @endif
             @if (!empty($rollbackReleases))
@@ -96,9 +102,15 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
                     class="w-56"
                     :options="collect($rollbackReleases)->pluck('label', 'name')->toArray()"
                 />
-                <x-ui.button type="button" wire:click="rollbackSymlink" wire:confirm="Confirmer le retour arrière vers {{ $rollbackTarget }} ?" variant="danger" size="sm">
-                    <x-icon name="lucide-rotate-ccw" class="h-4 w-4" />
-                    Retour arrière
+                <x-ui.button type="button" wire:click="rollbackSymlink" wire:confirm="Confirmer le retour arrière vers {{ $rollbackTarget }} ?" variant="danger" size="sm" wire:loading.attr="disabled" wire:target="rollbackSymlink">
+                    <span wire:loading.remove wire:target="rollbackSymlink" class="inline-flex items-center gap-2">
+                        <x-icon name="lucide-rotate-ccw" class="h-4 w-4" />
+                        Retour arrière
+                    </span>
+                    <span wire:loading wire:target="rollbackSymlink" class="inline-flex items-center gap-2">
+                        <x-ui.spinner size="sm" />
+                        Rollback...
+                    </span>
                 </x-ui.button>
             </div>
             @endif
@@ -106,9 +118,15 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
                 <x-icon name="lucide-rocket" class="h-4 w-4" />
                 Déployer
             </x-ui.button>
-            <x-ui.button type="button" wire:click="deleteProject" wire:confirm="Attention : la suppression va effacer le projet, ses fichiers sur le VPS, le SSL et la base de données. Continuer ?" variant="danger" size="sm">
-                <x-icon name="lucide-trash-2" class="h-4 w-4" />
-                Supprimer
+            <x-ui.button type="button" wire:click="deleteProject" wire:confirm="Attention : la suppression va effacer le projet, ses fichiers et les conteneurs associés. Continuer ?" variant="danger" size="sm" wire:loading.attr="disabled" wire:target="deleteProject">
+                <span wire:loading.remove wire:target="deleteProject" class="inline-flex items-center gap-2">
+                    <x-icon name="lucide-trash-2" class="h-4 w-4" />
+                    Supprimer
+                </span>
+                <span wire:loading wire:target="deleteProject" class="inline-flex items-center gap-2">
+                    <x-ui.spinner size="sm" />
+                    Suppression...
+                </span>
             </x-ui.button>
         </div>
     </div>
@@ -167,7 +185,7 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
                 @foreach ([
                 ['Dépôt Git', $project->github_repo, true],
                 ['Branche', $project->github_branch, false],
-                ['PHP', $project->php_version, false],
+                ['Runtime', 'Docker', false],
                 ['Domaine', $project->domain ?: 'sans domaine', true],
                 ['Serveur', $project->server?->name ?? 'Serveur inconnu', false],
                 ] as [$label, $value, $mono])
@@ -265,9 +283,15 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
                 <h2 class="text-base font-semibold text-white">Sauvegardes MySQL</h2>
                 <p class="text-xs text-slate-400">Fichiers .sql.gz stockés dans /backups</p>
             </div>
-            <x-ui.button type="button" wire:click="loadBackups" variant="default" size="sm">
-                <x-icon name="lucide-refresh-cw" class="h-4 w-4" />
-                Actualiser
+            <x-ui.button type="button" wire:click="loadBackups" variant="default" size="sm" wire:loading.attr="disabled" wire:target="loadBackups">
+                <span wire:loading.remove wire:target="loadBackups" class="inline-flex items-center gap-2">
+                    <x-icon name="lucide-refresh-cw" class="h-4 w-4" />
+                    Actualiser
+                </span>
+                <span wire:loading wire:target="loadBackups" class="inline-flex items-center gap-2">
+                    <x-ui.spinner size="sm" />
+                    Actualisation...
+                </span>
             </x-ui.button>
         </div>
         <div class="divide-y divide-slate-800">
@@ -286,9 +310,15 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="text-xs text-slate-400">{{ $backup['size'] }}</span>
-                        <x-ui.button type="button" wire:click="downloadBackup('{{ $backup['name'] }}')" variant="default" size="sm">
-                            <x-icon name="lucide-download" class="h-4 w-4" />
-                            Télécharger
+                        <x-ui.button type="button" wire:click="downloadBackup('{{ $backup['name'] }}')" variant="default" size="sm" wire:loading.attr="disabled" wire:target="downloadBackup">
+                            <span wire:loading.remove wire:target="downloadBackup" class="inline-flex items-center gap-2">
+                                <x-icon name="lucide-download" class="h-4 w-4" />
+                                Télécharger
+                            </span>
+                            <span wire:loading wire:target="downloadBackup" class="inline-flex items-center gap-2">
+                                <x-ui.spinner size="sm" />
+                                Téléchargement...
+                            </span>
                         </x-ui.button>
                     </div>
                 </div>

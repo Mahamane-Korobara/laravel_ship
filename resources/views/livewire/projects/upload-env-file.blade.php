@@ -24,18 +24,34 @@
                         variant="ghost"
                         size="sm"
                         class="text-blue-600 hover:text-blue-700"
+                        wire:loading.attr="disabled"
+                        wire:target="downloadEnvFile"
                         title="Télécharger le fichier">
-                        <x-icon name="lucide-download" class="h-4 w-4" />
-                        Télécharger
+                        <span wire:loading.remove wire:target="downloadEnvFile" class="inline-flex items-center gap-2">
+                            <x-icon name="lucide-download" class="h-4 w-4" />
+                            Télécharger
+                        </span>
+                        <span wire:loading wire:target="downloadEnvFile" class="inline-flex items-center gap-2">
+                            <x-ui.spinner size="sm" />
+                            Téléchargement...
+                        </span>
                     </x-ui.button>
                     <x-ui.button
                         wire:click="deleteEnvFile"
                         variant="ghost"
                         size="sm"
                         class="text-red-600 hover:text-red-700"
-                        wire:confirm="Êtes-vous sûr de vouloir supprimer ce fichier ?">
-                        <x-icon name="lucide-trash-2" class="h-4 w-4" />
-                        Supprimer
+                        wire:confirm="Êtes-vous sûr de vouloir supprimer ce fichier ?"
+                        wire:loading.attr="disabled"
+                        wire:target="deleteEnvFile">
+                        <span wire:loading.remove wire:target="deleteEnvFile" class="inline-flex items-center gap-2">
+                            <x-icon name="lucide-trash-2" class="h-4 w-4" />
+                            Supprimer
+                        </span>
+                        <span wire:loading wire:target="deleteEnvFile" class="inline-flex items-center gap-2">
+                            <x-ui.spinner size="sm" />
+                            Suppression...
+                        </span>
                     </x-ui.button>
                 </div>
             </div>
@@ -80,9 +96,17 @@
                     wire:click="uploadEnvFile"
                     variant="primary"
                     size="md"
-                    class="bg-blue-600 hover:bg-blue-700">
-                    <x-icon name="lucide-upload" class="h-4 w-4" />
-                    Charger le fichier
+                    class="bg-blue-600 hover:bg-blue-700"
+                    wire:loading.attr="disabled"
+                    wire:target="uploadEnvFile">
+                    <span wire:loading.remove wire:target="uploadEnvFile" class="inline-flex items-center gap-2">
+                        <x-icon name="lucide-upload" class="h-4 w-4" />
+                        Charger le fichier
+                    </span>
+                    <span wire:loading wire:target="uploadEnvFile" class="inline-flex items-center gap-2">
+                        <x-ui.spinner size="sm" />
+                        Envoi...
+                    </span>
                 </x-ui.button>
             </div>
         </x-ui.card>

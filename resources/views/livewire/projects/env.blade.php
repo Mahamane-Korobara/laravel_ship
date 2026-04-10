@@ -29,8 +29,11 @@
             <div class="pt-5">
                 <button
                     wire:click="addVariable"
-                    class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 transition shadow-lg shadow-indigo-900/40">
-                    <x-icon name="lucide-plus" class="h-4 w-4" />
+                    wire:loading.attr="disabled"
+                    wire:target="addVariable"
+                    class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 transition shadow-lg shadow-indigo-900/40 disabled:opacity-60 disabled:cursor-not-allowed">
+                    <span wire:loading.remove wire:target="addVariable"><x-icon name="lucide-plus" class="h-4 w-4" /></span>
+                    <span wire:loading wire:target="addVariable"><x-ui.spinner size="sm" /></span>
                 </button>
             </div>
         </div>
@@ -55,8 +58,11 @@
                 <button
                     wire:click="deleteVariable({{ $variable->id }})"
                     wire:confirm="Êtes-vous sûr de vouloir supprimer cette variable ?"
-                    class="text-slate-500 hover:text-rose-400 transition p-1 rounded">
-                    <x-icon name="lucide-trash-2" class="h-4 w-4" />
+                    wire:loading.attr="disabled"
+                    wire:target="deleteVariable"
+                    class="text-slate-500 hover:text-rose-400 transition p-1 rounded disabled:opacity-60 disabled:cursor-not-allowed">
+                    <span wire:loading.remove wire:target="deleteVariable"><x-icon name="lucide-trash-2" class="h-4 w-4" /></span>
+                    <span wire:loading wire:target="deleteVariable"><x-ui.spinner size="sm" /></span>
                 </button>
             </div>
         </div>

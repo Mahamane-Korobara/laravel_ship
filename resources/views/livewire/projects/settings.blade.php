@@ -135,10 +135,16 @@
         </div>
 
         <div>
-            <button wire:click="save"
-                class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition shadow-lg shadow-indigo-900/40">
-                <x-icon name="lucide-settings" class="h-4 w-4" />
-                Sauvegarder
+            <button wire:click="save" wire:loading.attr="disabled" wire:target="save"
+                class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition shadow-lg shadow-indigo-900/40 disabled:opacity-60 disabled:cursor-not-allowed">
+                <span wire:loading.remove wire:target="save" class="inline-flex items-center gap-2">
+                    <x-icon name="lucide-settings" class="h-4 w-4" />
+                    Sauvegarder
+                </span>
+                <span wire:loading wire:target="save" class="inline-flex items-center gap-2">
+                    <x-ui.spinner size="sm" />
+                    Sauvegarde...
+                </span>
             </button>
         </div>
     </div>

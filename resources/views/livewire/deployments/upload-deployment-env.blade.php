@@ -19,8 +19,14 @@
         <button
             type="button"
             wire:click="uploadEnvFile"
-            class="rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-1 text-xs text-white font-medium transition">
-            Charger
+            wire:loading.attr="disabled"
+            wire:target="uploadEnvFile"
+            class="rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-1 text-xs text-white font-medium transition disabled:opacity-60 disabled:cursor-not-allowed">
+            <span wire:loading.remove wire:target="uploadEnvFile">Charger</span>
+            <span wire:loading wire:target="uploadEnvFile" class="inline-flex items-center gap-2">
+                <x-ui.spinner size="sm" />
+                Envoi...
+            </span>
         </button>
     </div>
     @endif
@@ -34,8 +40,14 @@
         <button
             type="button"
             wire:click="clearEnvFile"
-            class="rounded-lg border border-zinc-700 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800 transition">
-            Modifier
+            wire:loading.attr="disabled"
+            wire:target="clearEnvFile"
+            class="rounded-lg border border-zinc-700 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800 transition disabled:opacity-60 disabled:cursor-not-allowed">
+            <span wire:loading.remove wire:target="clearEnvFile">Modifier</span>
+            <span wire:loading wire:target="clearEnvFile" class="inline-flex items-center gap-2">
+                <x-ui.spinner size="sm" />
+                Chargement...
+            </span>
         </button>
     </div>
     @endif

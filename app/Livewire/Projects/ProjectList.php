@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Projects;
 
-use App\Services\SshService;
+use App\Services\RemoteRunnerFactory;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Layout;
@@ -59,13 +59,8 @@ class ProjectList extends Component
 
                 foreach ($user->servers as $server) {
                     try {
-                        $ssh = new SshService(
-                            ip: $server->ip_address,
-                            user: $server->ssh_user,
-                            privateKey: $server->ssh_private_key,
-                            port: $server->ssh_port,
-                        );
-                        $output = trim($ssh->exec("ls -1 /var/www/projects 2>/dev/null || true"));
+                        $ssh = app(RemoteRunnerFactory::class)->forServer($server);
+                        $output = trim($ssh->exec("docker ps --format '{{.Names}}' 2>/dev/null || true"));
                         $ssh->disconnect();
 
                         if ($output === '') {
@@ -73,7 +68,7 @@ class ProjectList extends Component
                         }
 
                         foreach (array_filter(explode("\n", $output)) as $folder) {
-                            $path = "/var/www/projects/{$folder}";
+                            $path = "/containers/{$folder}";
                             if (in_array($path, $existingPaths, true) || in_array(strtolower($folder), $existingNames, true)) {
                                 continue;
                             }

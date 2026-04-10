@@ -8,7 +8,7 @@ use phpseclib3\Crypt\PublicKeyLoader;
 use Exception;
 use RuntimeException;
 
-class SshService
+class SshService implements RemoteRunner
 {
     private SSH2 $ssh;
 

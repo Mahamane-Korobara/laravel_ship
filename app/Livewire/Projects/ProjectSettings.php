@@ -16,12 +16,14 @@ class ProjectSettings extends Component
     public string $name          = '';
     public string $github_branch = 'main';
     public string $domain        = '';
-    public string $php_version   = '8.2';
     public ?int   $server_id     = null;
     public bool   $run_migrations   = true;
     public bool   $run_seeders      = false;
     public bool   $run_npm_build    = false;
     public bool   $has_queue_worker = false;
+    public string $docker_image = '';
+    public string $registry = '';
+    public array $tags = [];
 
     public bool $confirmDelete = false;
 
@@ -31,8 +33,10 @@ class ProjectSettings extends Component
             'name'          => 'required|string|max:255',
             'github_branch' => 'required|string',
             'domain'        => 'nullable|string|max:255',
-            'php_version'   => 'required|in:7.4,8.0,8.1,8.2,8.3,8.4',
             'server_id'     => 'nullable|exists:servers,id',
+            'docker_image' => 'nullable|string|max:255',
+            'registry' => 'nullable|string|max:255',
+            'tags' => 'nullable|array',
         ];
     }
 
@@ -44,12 +48,14 @@ class ProjectSettings extends Component
         $this->name             = $project->name;
         $this->github_branch    = $project->github_branch;
         $this->domain           = $project->domain ?? '';
-        $this->php_version      = $project->php_version;
         $this->server_id        = $project->server_id;
         $this->run_migrations   = $project->run_migrations;
         $this->run_seeders      = $project->run_seeders;
         $this->run_npm_build    = $project->run_npm_build;
         $this->has_queue_worker = $project->has_queue_worker;
+        $this->docker_image = $project->docker_image ?? '';
+        $this->registry = $project->registry ?? '';
+        $this->tags = $project->tags ?? [];
     }
 
     public function save(): void
@@ -60,12 +66,14 @@ class ProjectSettings extends Component
             'name'            => $this->name,
             'github_branch'   => $this->github_branch,
             'domain'          => $this->domain ?: null,
-            'php_version'     => $this->php_version,
             'server_id'       => $this->server_id,
             'run_migrations'  => $this->run_migrations,
             'run_seeders'     => $this->run_seeders,
             'run_npm_build'   => $this->run_npm_build,
             'has_queue_worker' => $this->has_queue_worker,
+            'docker_image' => $this->docker_image ?: null,
+            'registry' => $this->registry ?: null,
+            'tags' => $this->tags ?: null,
         ]);
 
         session()->flash('success', 'Paramètres sauvegardés.');

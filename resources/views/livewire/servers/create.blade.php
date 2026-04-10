@@ -5,9 +5,9 @@
     </a>
     <div>
         <h1 class="text-2xl font-bold text-white">Ajouter un serveur</h1>
-        <p class="text-sm text-slate-400">Configurez un nouveau VPS pour vos déploiements</p>
+        <p class="text-sm text-slate-400">Configurez un serveur Docker pour vos déploiements</p>
     </div>
-    <form wire:submit="save" class="ship-panel space-y-4 p-5">
+    <form wire:submit.prevent="save" class="ship-panel space-y-4 p-5">
         <div class="grid gap-4 md:grid-cols-2">
             <div>
                 <label class="text-xs text-[#8ea2c5]">Nom</label>
@@ -29,27 +29,30 @@
             </div>
             <div class="md:col-span-2">
                 <label class="text-xs text-[#8ea2c5]">Clé privée SSH</label>
-                <textarea wire:model.defer="ssh_private_key" rows="6" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" class="mt-1 w-full rounded-xl border border-[#2f3f61] bg-[#0b1426] px-3 py-2"></textarea>
+                <x-ui.textarea wire:model.defer="ssh_private_key" rows="6" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" class="mt-1" />
                 @error('ssh_private_key')<p class="text-xs text-rose-300 mt-1">{{ $message }}</p>@enderror
-            </div>
-            <div>
-                <label class="text-xs text-[#8ea2c5]">Version PHP</label>
-                <div class="mt-1">
-                    <x-ui.select
-                        wire:model.defer="php_version"
-                        :options="['7.4' => '7.4', '8.0' => '8.0', '8.1' => '8.1', '8.2' => '8.2', '8.3' => '8.3', '8.4' => '8.4']"
-                    />
-                </div>
             </div>
         </div>
         <div class="flex flex-wrap gap-2">
-            <x-ui.button type="button" wire:click="testConnection" variant="primary">
-                Tester SSH
+            <x-ui.button type="button" wire:click="testConnection" variant="primary" wire:loading.attr="disabled" wire:target="testConnection">
+                <span wire:loading.remove wire:target="testConnection">Tester Docker</span>
+                <span wire:loading wire:target="testConnection" class="inline-flex items-center gap-2">
+                    <x-ui.spinner size="sm" />
+                    Test en cours...
+                </span>
             </x-ui.button>
-            <x-ui.button variant="danger">
-                Ajouter le serveur
+            <x-ui.button type="submit" variant="danger" wire:loading.attr="disabled" wire:target="save">
+                <span wire:loading.remove wire:target="save">Ajouter le serveur</span>
+                <span wire:loading wire:target="save" class="inline-flex items-center gap-2">
+                    <x-ui.spinner size="sm" />
+                    Ajout en cours...
+                </span>
             </x-ui.button>
         </div>
-        @if ($testResult)<pre class="rounded-xl border border-[#2f3f61] bg-black p-3 text-xs text-emerald-300">{{ $testResult }}</pre>@endif
+        <div class="{{ $testResult ? '' : 'hidden' }}" wire:loading.class.remove="hidden" wire:target="testConnection">
+            <x-ui.terminal title="Test SSH" minHeight="200px" maxHeight="360px" stream="testResult" variant="{{ $testSuccess ? 'success' : ($testResult ? 'error' : 'info') }}">
+                {{ $testResult ?: '→ Test en cours…' }}
+            </x-ui.terminal>
+        </div>
     </form>
 </div>

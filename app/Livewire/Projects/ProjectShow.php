@@ -4,10 +4,9 @@ namespace App\Livewire\Projects;
 
 use App\Models\Deployment;
 use App\Models\Project;
-use App\Services\ApacheService;
 use App\Services\GitHubService;
-use App\Services\SshService;
-use App\Services\SslService;
+use App\Services\RemoteRunner;
+use App\Services\RemoteRunnerFactory;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -111,12 +110,7 @@ class ProjectShow extends Component
         $server = $project->server;
 
         try {
-            $ssh = new SshService(
-                ip: $server->ip_address,
-                user: $server->ssh_user,
-                privateKey: $server->ssh_private_key,
-                port: $server->ssh_port,
-            );
+            $ssh = app(RemoteRunnerFactory::class)->forServer($server);
 
             $deployPath = $project->deploy_path;
             $releasePath = "{$deployPath}/releases/{$this->rollbackTarget}";
@@ -129,6 +123,7 @@ class ProjectShow extends Component
             }
 
             $ssh->exec("ln -sfn {$releasePath} {$deployPath}/current");
+            $ssh->exec("if [ -f {$releasePath}/docker-compose.yml ]; then cd {$releasePath} && docker compose up -d --remove-orphans; fi");
             $ssh->disconnect();
 
             $now = now();
@@ -138,7 +133,7 @@ class ProjectShow extends Component
                 'git_branch'       => $project->github_branch,
                 'triggered_by'     => 'manual',
                 'status'           => 'rolled_back',
-                'log'              => "Retour arrière vers {$this->rollbackTarget} (lien symbolique current mis à jour).",
+            'log'              => "Retour arrière vers {$this->rollbackTarget} (lien symbolique current mis à jour, conteneur relancé).",
                 'started_at'       => $now,
                 'finished_at'      => $now,
                 'duration_seconds' => 1,
@@ -171,12 +166,7 @@ class ProjectShow extends Component
         }
 
         try {
-            $ssh = new SshService(
-                ip: $project->server->ip_address,
-                user: $project->server->ssh_user,
-                privateKey: $project->server->ssh_private_key,
-                port: $project->server->ssh_port,
-            );
+            $ssh = app(RemoteRunnerFactory::class)->forServer($project->server);
 
             $backupDir = "{$project->deploy_path}/backups";
             $command = "if [ -d \"{$backupDir}\" ]; then find \"{$backupDir}\" -maxdepth 1 -type f -name \"*.sql.gz\" -printf \"%f|%s|%TY-%Tm-%Td %TH:%TM:%TS\\n\" | sort -r; fi";
@@ -225,12 +215,7 @@ class ProjectShow extends Component
         $localPath = "{$localDir}/" . Str::random(8) . "-{$safeName}";
 
         try {
-            $ssh = new SshService(
-                ip: $project->server->ip_address,
-                user: $project->server->ssh_user,
-                privateKey: $project->server->ssh_private_key,
-                port: $project->server->ssh_port,
-            );
+            $ssh = app(RemoteRunnerFactory::class)->forServer($project->server);
 
             $exists = trim($ssh->exec("if [ -f \"{$remotePath}\" ]; then echo yes; else echo no; fi"));
             if ($exists !== 'yes') {
@@ -351,28 +336,21 @@ class ProjectShow extends Component
             return;
         }
 
-        $ssh = new SshService(
-            ip: $server->ip_address,
-            user: $server->ssh_user,
-            privateKey: $server->ssh_private_key,
-            port: $server->ssh_port,
-        );
+        $ssh = app(RemoteRunnerFactory::class)->forServer($server);
 
         $deployPath = $project->deploy_path;
-        $projectKey = basename($deployPath);
-
-        //  Supprimer SSL + vhost
-        if ($project->domain) {
-            $apache = new ApacheService($ssh);
-            $ssl = new SslService($ssh);
-            $ssl->remove($project->domain);
-            $apache->removeVirtualHost($projectKey);
-            $apache->removeProjectPhpFpmPool($projectKey);
-            $ssh->exec("sudo rm -f /var/log/apache2/{$projectKey}-access.log /var/log/apache2/{$projectKey}-error.log || true");
+        $dockerBin = $this->resolveDockerBin($ssh);
+        $projectKey = strtolower(trim($project->name));
+        $projectKey = preg_replace('/[^a-z0-9]+/', '-', $projectKey) ?? '';
+        $projectKey = trim($projectKey, '-');
+        if ($projectKey === '') {
+            $projectKey = basename($deployPath);
         }
 
-        //  Supprimer la base de donnees si possible (mysql/mariadb)
-        $this->dropRemoteDatabaseIfPossible($ssh, $deployPath);
+        //  Stopper et nettoyer le conteneur/app docker
+        $ssh->exec("if [ -d {$deployPath}/releases ]; then for f in {$deployPath}/releases/*/docker-compose.yml; do [ -f \"\\$f\" ] && (cd \"\\$(dirname \"\\$f\")\" && {$dockerBin} compose down --remove-orphans >/dev/null 2>&1 || true); done; fi");
+        $ssh->exec("{$dockerBin} rm -f ship-{$projectKey} >/dev/null 2>&1 || true");
+        $ssh->exec("{$dockerBin} images --format '{{.Repository}}:{{.Tag}}' | grep -E '^{$projectKey}:' | xargs -r {$dockerBin} rmi -f || true");
 
         //  Nettoyer tous les fichiers du projet
         $ssh->exec("sudo rm -rf {$deployPath}");
@@ -380,28 +358,27 @@ class ProjectShow extends Component
         $ssh->disconnect();
     }
 
-    private function dropRemoteDatabaseIfPossible(SshService $ssh, string $deployPath): void
+    private function resolveDockerBin(RemoteRunner $ssh): string
     {
-        $envPath = "{$deployPath}/shared/.env";
-        $command = <<<BASH
-if [ -f "{$envPath}" ]; then
-  DB_CONN=\$(grep -E '^DB_CONNECTION=' "{$envPath}" | head -n1 | cut -d= -f2- | tr -d '\\r\"');
-  if [ "\$DB_CONN" = "mysql" ] || [ "\$DB_CONN" = "mariadb" ]; then
-    DB_NAME=\$(grep -E '^DB_DATABASE=' "{$envPath}" | head -n1 | cut -d= -f2- | tr -d '\\r\"');
-    DB_USER=\$(grep -E '^DB_USERNAME=' "{$envPath}" | head -n1 | cut -d= -f2- | tr -d '\\r\"');
-    DB_PASS=\$(grep -E '^DB_PASSWORD=' "{$envPath}" | head -n1 | cut -d= -f2- | tr -d '\\r\"');
-    DB_HOST=\$(grep -E '^DB_HOST=' "{$envPath}" | head -n1 | cut -d= -f2- | tr -d '\\r\"');
-    DB_PORT=\$(grep -E '^DB_PORT=' "{$envPath}" | head -n1 | cut -d= -f2- | tr -d '\\r\"');
-    if [ -n "\$DB_NAME" ] && [ -n "\$DB_USER" ]; then
-      DB_HOST=\${DB_HOST:-localhost}
-      DB_PORT=\${DB_PORT:-3306}
-      MYSQL_PWD="\$DB_PASS" mysql -h "\$DB_HOST" -P "\$DB_PORT" -u "\$DB_USER" -e "DROP DATABASE IF EXISTS \\\\\`\$DB_NAME\\\\\`;" || true
-    fi
-  fi
-fi
-BASH;
+        try {
+            $ok = trim($ssh->exec("docker info >/dev/null 2>&1 && echo ok || echo fail")) === 'ok';
+            if ($ok) {
+                return 'docker';
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
 
-        $ssh->exec($command);
+        try {
+            $ok = trim($ssh->exec("sudo -n docker info >/dev/null 2>&1 && echo ok || echo fail")) === 'ok';
+            if ($ok) {
+                return 'sudo -n docker';
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        return 'docker';
     }
 
     private function formatBytes(int $bytes): string

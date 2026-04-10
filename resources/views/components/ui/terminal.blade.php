@@ -1,8 +1,24 @@
 @props([
-'title' => 'terminal',
-'minHeight' => '320px',
-'maxHeight' => '520px',
+    'title' => 'terminal',
+    'minHeight' => '320px',
+    'maxHeight' => '520px',
+    'stream' => null,
+    'textClass' => null,
+    'variant' => 'info',
+    'compact' => false,
 ])
+
+@php
+$variantClasses = [
+    'info' => 'text-slate-200',
+    'success' => 'text-emerald-300',
+    'error' => 'text-rose-300',
+];
+$resolvedText = $textClass ?: ($variantClasses[$variant] ?? $variantClasses['info']);
+$bodyClasses = $compact
+    ? 'p-3 sm:p-4 text-[11px] sm:text-xs leading-4'
+    : 'p-4 text-xs leading-5';
+@endphp
 
 <section {{ $attributes->merge(['class' => 'rounded-lg border border-[#1f2a44] bg-[#0b1020]/80 overflow-hidden']) }}>
     <div class="flex items-center justify-between border-b border-[#1f2a44] px-4 py-3">
@@ -27,7 +43,8 @@
         x-init="init()">
         <div
             x-ref="body"
-            class="ship-scroll overflow-y-auto overflow-x-hidden p-4 font-mono text-xs leading-1 text-[#a5b4fc] whitespace-pre-wrap break-words"
+            @if($stream) wire:stream="{{ $stream }}" @endif
+            class="ship-scroll overflow-y-auto overflow-x-hidden font-mono {{ $resolvedText }} {{ $bodyClasses }} whitespace-pre-wrap break-words"
             :style="'min-height: ' + ($minHeight || '320px') + '; max-height: ' + ($maxHeight || '520px') + ';'">
             {{ $slot }}
         </div>

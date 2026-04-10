@@ -16,6 +16,11 @@ use Illuminate\Support\Facades\Crypt;
  * @property int $ssh_port
  * @property string $ssh_private_key
  * @property string $php_version
+ * @property array|null $labels
+ * @property string|null $agent_url
+ * @property string|null $agent_token
+ * @property bool $agent_enabled
+ * @property \Illuminate\Support\Carbon|null $agent_last_seen_at
  * @property int|null $vcpu
  * @property int|null $ram_mb
  * @property int|null $disk_gb
@@ -57,6 +62,11 @@ class Server extends Model
         'ssh_port',
         'ssh_private_key',
         'php_version',
+        'labels',
+        'agent_url',
+        'agent_token',
+        'agent_enabled',
+        'agent_last_seen_at',
         'vcpu',
         'ram_mb',
         'disk_gb',
@@ -67,10 +77,13 @@ class Server extends Model
 
     protected $casts = [
         'last_connected_at' => 'datetime',
+        'agent_last_seen_at' => 'datetime',
         'ssh_port'          => 'integer',
         'vcpu'              => 'integer',
         'ram_mb'            => 'integer',
         'disk_gb'           => 'integer',
+        'labels'            => 'array',
+        'agent_enabled'     => 'boolean',
     ];
 
     //  Chiffrement IP 
@@ -93,6 +106,19 @@ class Server extends Model
     public function getSshPrivateKeyAttribute(string $value): string
     {
         return Crypt::decryptString($value);
+    }
+
+    //  Chiffrement token agent
+    public function setAgentTokenAttribute(?string $value): void
+    {
+        $this->attributes['agent_token'] = $value
+            ? Crypt::encryptString($value)
+            : null;
+    }
+
+    public function getAgentTokenAttribute(?string $value): ?string
+    {
+        return $value ? Crypt::decryptString($value) : null;
     }
 
     //  IP masquée pour l'UI 

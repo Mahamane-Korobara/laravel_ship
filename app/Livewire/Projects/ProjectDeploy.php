@@ -8,9 +8,8 @@ use App\Models\EnvVariable;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\GitHubService;
-use App\Services\SshService;
+use App\Services\RemoteRunnerFactory;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -26,7 +25,6 @@ class ProjectDeploy extends Component
     public string $github_branch = 'main';
     public int    $server_id     = 0;
     public string $domain        = '';
-    public string $php_version   = '8.2';
 
     // Options
     public bool $run_migrations   = true;
@@ -54,7 +52,6 @@ class ProjectDeploy extends Component
             'github_branch' => 'required|string',
             'server_id'     => 'required|integer|exists:servers,id',
             'domain'        => 'nullable|string|max:255',
-            'php_version'   => 'required|in:7.4,8.0,8.1,8.2,8.3,8.4',
         ];
 
         if (!$this->deploymentEnvFilePath) {
@@ -78,7 +75,6 @@ class ProjectDeploy extends Component
         $this->github_branch = $project->github_branch;
         $this->server_id     = $project->server_id ?? 0;
         $this->domain        = $project->domain ?? '';
-        $this->php_version   = $project->php_version;
         $this->run_migrations   = $project->run_migrations;
         $this->run_seeders      = $project->run_seeders;
         $this->run_npm_build    = $project->run_npm_build;
@@ -151,7 +147,6 @@ class ProjectDeploy extends Component
             'github_branch'   => $this->github_branch,
             'server_id'       => $this->server_id,
             'domain'          => $this->domain ?: null,
-            'php_version'     => $this->php_version,
             'run_migrations'  => $this->run_migrations,
             'run_seeders'     => $this->run_seeders,
             'run_npm_build'   => $this->run_npm_build,
@@ -209,38 +204,31 @@ class ProjectDeploy extends Component
                 throw new RuntimeException('Serveur introuvable.');
             }
 
-            $envContent = $this->resolveEnvContent();
-            $env = $this->parseEnv($envContent);
+            $ssh = app(RemoteRunnerFactory::class)->forServer($server);
 
-            $requirements = $this->buildRequirements($env);
+            $dockerVersion = trim($ssh->exec("docker --version 2>/dev/null || true"));
+            if ($dockerVersion === '') {
+                $dockerVersion = trim($ssh->exec("sudo -n docker --version 2>/dev/null || true"));
+            }
 
-            $ssh = new SshService(
-                ip: $server->ip_address,
-                user: $server->ssh_user,
-                privateKey: $server->ssh_private_key,
-                port: $server->ssh_port,
-            );
+            $dockerBin = $dockerVersion !== '' ? 'docker' : 'sudo -n docker';
+            $composeVersion = trim($ssh->exec("{$dockerBin} compose version 2>/dev/null || true"));
+            $psOutput = trim($ssh->exec("{$dockerBin} ps --format '{{.Names}}' 2>/dev/null || true"));
 
-            $phpBin = $this->resolvePhpBinary($ssh, $this->php_version);
+            $checks = [
+                ['label' => 'Docker Engine', 'value' => $dockerVersion],
+                ['label' => 'Docker Compose', 'value' => $composeVersion],
+                ['label' => 'Acces Docker', 'value' => $psOutput],
+            ];
 
-            foreach ($requirements as $req) {
-                if ($req['type'] === 'system') {
-                    $ok = trim($ssh->exec("dpkg -s {$req['name']} >/dev/null 2>&1 && echo ok || echo missing")) === 'ok';
-                    $this->dependencyAudit[] = $this->formatAudit($req['label'], $req['type'], $ok, $req['name']);
-                    continue;
-                }
-
-                if ($req['type'] === 'binary') {
-                    $ok = trim($ssh->exec("command -v {$req['name']} >/dev/null 2>&1 && echo ok || echo missing")) === 'ok';
-                    $this->dependencyAudit[] = $this->formatAudit($req['label'], $req['type'], $ok, $req['name']);
-                    continue;
-                }
-
-                if ($req['type'] === 'php-ext') {
-                    $ext = $req['name'];
-                    $ok = trim($ssh->exec("{$phpBin} -r \"echo extension_loaded('{$ext}') ? 'ok' : 'missing';\"")) === 'ok';
-                    $this->dependencyAudit[] = $this->formatAudit($req['label'], $req['type'], $ok, $ext);
-                }
+            foreach ($checks as $check) {
+                $ok = $check['value'] !== '';
+                $this->dependencyAudit[] = $this->formatAudit(
+                    $check['label'],
+                    'docker',
+                    $ok,
+                    $ok ? $check['value'] : 'non detecte'
+                );
             }
 
             $ssh->disconnect();
@@ -261,119 +249,6 @@ class ProjectDeploy extends Component
         ]);
     }
 
-    private function resolveEnvContent(): string
-    {
-        if ($this->deploymentEnvFilePath && Storage::disk('local')->exists($this->deploymentEnvFilePath)) {
-            return (string) Storage::disk('local')->get($this->deploymentEnvFilePath);
-        }
-
-        if ($this->project->env_file_path && Storage::disk('local')->exists($this->project->env_file_path)) {
-            return (string) Storage::disk('local')->get($this->project->env_file_path);
-        }
-
-        $pairs = collect($this->envVars)
-            ->filter(fn($var) => !empty($var['key']) && isset($var['value']))
-            ->map(fn($var) => trim($var['key']) . '=' . $var['value'])
-            ->values()
-            ->all();
-
-        return implode("\n", $pairs);
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function parseEnv(string $content): array
-    {
-        $parsed = [];
-
-        foreach (preg_split('/\r\n|\r|\n/', $content) as $line) {
-            $line = trim($line);
-            if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
-                continue;
-            }
-
-            [$key, $value] = explode('=', $line, 2);
-            $key = trim($key);
-            $value = trim($value);
-
-            if ($key === '') {
-                continue;
-            }
-
-            if (
-                (str_starts_with($value, '"') && str_ends_with($value, '"'))
-                || (str_starts_with($value, "'") && str_ends_with($value, "'"))
-            ) {
-                $value = substr($value, 1, -1);
-            }
-
-            $parsed[$key] = $value;
-        }
-
-        return $parsed;
-    }
-
-    private function resolvePhpBinary(SshService $ssh, string $version): string
-    {
-        $candidate = "php{$version}";
-        $hasCandidate = trim($ssh->exec("command -v {$candidate} >/dev/null 2>&1 && echo ok || echo missing"));
-
-        return $hasCandidate === 'ok' ? $candidate : 'php';
-    }
-
-    /**
-     * @param array<string, string> $env
-     * @return array<int, array{type:string,name:string,label:string}>
-     */
-    private function buildRequirements(array $env): array
-    {
-        $requirements = [];
-
-        $dbConnection = strtolower((string) ($env['DB_CONNECTION'] ?? ''));
-        $usesRedis = $this->envIsRedis($env, 'CACHE_STORE')
-            || $this->envIsRedis($env, 'CACHE_DRIVER')
-            || $this->envIsRedis($env, 'QUEUE_CONNECTION')
-            || $this->envIsRedis($env, 'SESSION_DRIVER')
-            || $this->envIsRedis($env, 'BROADCAST_DRIVER')
-            || $this->envIsRedis($env, 'BROADCAST_CONNECTION')
-            || strtolower((string) ($env['REDIS_HOST'] ?? '')) !== '';
-
-        if ($usesRedis) {
-            $requirements[] = ['type' => 'system', 'name' => 'redis-server', 'label' => 'Serveur Redis'];
-            $requirements[] = ['type' => 'php-ext', 'name' => 'redis', 'label' => 'Extension PHP redis'];
-        }
-
-        if (in_array($dbConnection, ['mysql', 'mariadb'], true)) {
-            $requirements[] = ['type' => 'system', 'name' => 'mysql-server', 'label' => 'Serveur MySQL'];
-            $requirements[] = ['type' => 'php-ext', 'name' => 'pdo_mysql', 'label' => 'Extension PHP pdo_mysql'];
-        }
-
-        if ($dbConnection === 'pgsql') {
-            $requirements[] = ['type' => 'system', 'name' => 'postgresql', 'label' => 'Serveur PostgreSQL'];
-            $requirements[] = ['type' => 'php-ext', 'name' => 'pdo_pgsql', 'label' => 'Extension PHP pdo_pgsql'];
-        }
-
-        if ($dbConnection === 'sqlite') {
-            $requirements[] = ['type' => 'system', 'name' => 'sqlite3', 'label' => 'SQLite'];
-            $requirements[] = ['type' => 'php-ext', 'name' => 'pdo_sqlite', 'label' => 'Extension PHP pdo_sqlite'];
-        }
-
-        if ($this->run_npm_build) {
-            $requirements[] = ['type' => 'binary', 'name' => 'node', 'label' => 'Node.js'];
-            $requirements[] = ['type' => 'binary', 'name' => 'npm', 'label' => 'npm'];
-        }
-
-        $requirements[] = ['type' => 'binary', 'name' => 'composer', 'label' => 'Composer'];
-
-        return $requirements;
-    }
-
-    private function envIsRedis(array $env, string $key): bool
-    {
-        $value = strtolower((string) ($env[$key] ?? ''));
-        return $value === 'redis';
-    }
 
     private function formatAudit(string $label, string $type, bool $ok, string $identifier): array
     {
