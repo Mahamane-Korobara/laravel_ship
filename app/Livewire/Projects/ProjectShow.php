@@ -244,6 +244,7 @@ class ProjectShow extends Component
             $this->cleanupRemoteProject($project);
         } catch (\Throwable $e) {
             session()->flash('error', "Suppression annulée : {$e->getMessage()}");
+            $this->dispatch('notify', message: 'Erreur lors du nettoyage du VPS.', type: 'error');
             return;
         }
 
@@ -253,6 +254,7 @@ class ProjectShow extends Component
         $project->delete();
 
         session()->flash('success', "Projet supprimé et nettoyé.");
+        $this->dispatch('notify', message: 'Projet supprimé avec succès.', type: 'success');
         $this->redirect(route('projects.index'), navigate: true);
     }
 
@@ -348,12 +350,12 @@ class ProjectShow extends Component
         }
 
         //  Stopper et nettoyer le conteneur/app docker
-        $ssh->exec("if [ -d {$deployPath}/releases ]; then for f in {$deployPath}/releases/*/docker-compose.yml; do [ -f \"\\$f\" ] && (cd \"\\$(dirname \"\\$f\")\" && {$dockerBin} compose down --remove-orphans >/dev/null 2>&1 || true); done; fi");
+        $ssh->exec("if [ -d {$deployPath}/releases ]; then for f in {$deployPath}/releases/*/docker-compose.yml; do [ -f \"\\$f\" ] && (cd \"\\$(dirname \"\\$f\")\" && {$dockerBin} compose down --remove-orphans -v >/dev/null 2>&1 || true); done; fi");
         $ssh->exec("{$dockerBin} rm -f ship-{$projectKey} >/dev/null 2>&1 || true");
         $ssh->exec("{$dockerBin} images --format '{{.Repository}}:{{.Tag}}' | grep -E '^{$projectKey}:' | xargs -r {$dockerBin} rmi -f || true");
 
         //  Nettoyer tous les fichiers du projet
-        $ssh->exec("sudo rm -rf {$deployPath}");
+        $ssh->exec("sh -lc 'sudo -n rm -rf {$deployPath} >/dev/null 2>&1 || rm -rf {$deployPath} >/dev/null 2>&1 || true'");
 
         $ssh->disconnect();
     }

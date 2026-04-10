@@ -39,6 +39,8 @@
         </button>
     </div>
 
+    <x-ui.toast-stack />
+
     <template x-teleport="body">
         <div x-show="mobileOpen" style="display:none" class="lg:hidden fixed inset-0 z-50">
             <div class="absolute inset-0 bg-black/60" @click="mobileOpen=false"></div>

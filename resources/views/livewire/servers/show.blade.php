@@ -13,7 +13,7 @@
     };
 @endphp
 
-<div class="space-y-6">
+<div class="space-y-6" x-data="{ deleteServerOpen: false }">
     <a href="{{ route('servers.index') }}" wire:navigate class="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition">
         <x-icon name="lucide-arrow-left" class="h-4 w-4" />
         Retour aux serveurs
@@ -43,7 +43,7 @@
                     Test en cours...
                 </span>
             </x-ui.button>
-            <x-ui.button type="button" wire:click="delete" wire:confirm="Supprimer ce serveur ?" variant="danger" wire:loading.attr="disabled" wire:target="delete" class="bg-transparent border border-rose-500/50 text-rose-300 hover:bg-rose-500/10">
+            <x-ui.button type="button" variant="danger" wire:loading.attr="disabled" wire:target="delete" @click="deleteServerOpen = true" class="bg-transparent border border-rose-500/50 text-rose-300 hover:bg-rose-500/10">
                 <span wire:loading.remove wire:target="delete" class="inline-flex items-center gap-2">
                     <x-icon name="lucide-trash-2" class="h-4 w-4" />
                     Supprimer
@@ -255,4 +255,32 @@
             @endif
         </div>
     </section>
+
+    <div x-show="deleteServerOpen" x-cloak x-transition.opacity class="fixed inset-0 z-50">
+        <x-ui.modal title="Supprimer le serveur">
+            <p>
+                Cette action supprime le serveur de LaravelShip. Les projets encore liés à ce serveur doivent être supprimés
+                ou déplacés avant de continuer.
+            </p>
+            <div class="rounded-xl border border-[#1f2a44] bg-[#0b1426] p-3 text-xs text-slate-300">
+                <div class="font-semibold text-slate-100">Vérifications :</div>
+                <div class="mt-2 space-y-1 font-mono">
+                    <div>0 projet actif lié</div>
+                    <div>Suppression locale dans la base</div>
+                </div>
+            </div>
+            <x-slot name="actions">
+                <x-ui.button type="button" variant="secondary" @click="deleteServerOpen = false">
+                    Annuler
+                </x-ui.button>
+                <x-ui.button type="button" variant="danger" wire:click="delete" wire:loading.attr="disabled" wire:target="delete" @click="deleteServerOpen = false">
+                    <span wire:loading.remove wire:target="delete">Continuer</span>
+                    <span wire:loading wire:target="delete" class="inline-flex items-center gap-2">
+                        <x-ui.spinner size="sm" />
+                        Suppression...
+                    </span>
+                </x-ui.button>
+            </x-slot>
+        </x-ui.modal>
+    </div>
 </div>

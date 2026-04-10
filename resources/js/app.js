@@ -29,3 +29,9 @@ document.addEventListener('click', (event) => {
         }
     }, 200);
 });
+
+document.addEventListener('livewire:init', () => {
+    Livewire.on('notify', ({ message, type } = {}) => {
+        window.dispatchEvent(new CustomEvent('ship-notify', { detail: { message, type } }));
+    });
+});

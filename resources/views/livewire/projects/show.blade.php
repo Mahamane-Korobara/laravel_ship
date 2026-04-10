@@ -24,7 +24,7 @@ default => 'bg-slate-700/40 text-slate-400 border border-slate-600/30',
 $activeTab = $activeTab ?? request()->get('tab', 'overview');
 @endphp
 
-<div class="space-y-6">
+<div class="space-y-6" x-data="{ deleteProjectOpen: false }">
 
     {{-- Back link --}}
     <a href="{{ route('projects.index') }}" wire:navigate class="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition">
@@ -118,7 +118,7 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
                 <x-icon name="lucide-rocket" class="h-4 w-4" />
                 Déployer
             </x-ui.button>
-            <x-ui.button type="button" wire:click="deleteProject" wire:confirm="Attention : la suppression va effacer le projet, ses fichiers et les conteneurs associés. Continuer ?" variant="danger" size="sm" wire:loading.attr="disabled" wire:target="deleteProject">
+            <x-ui.button type="button" variant="danger" size="sm" wire:loading.attr="disabled" wire:target="deleteProject" @click="deleteProjectOpen = true">
                 <span wire:loading.remove wire:target="deleteProject" class="inline-flex items-center gap-2">
                     <x-icon name="lucide-trash-2" class="h-4 w-4" />
                     Supprimer
@@ -328,4 +328,33 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
     </div>
     @endif
 
+    <div x-show="deleteProjectOpen" x-cloak x-transition.opacity class="fixed inset-0 z-50">
+        <x-ui.modal title="Supprimer le projet">
+            <p>
+                Cette action supprime le projet localement et tente de nettoyer le VPS
+                (conteneurs, images, volumes et fichiers).
+            </p>
+            <div class="rounded-xl border border-[#1f2a44] bg-[#0b1426] p-3 text-xs text-slate-300">
+                <div class="font-semibold text-slate-100">Suppression côté VPS :</div>
+                <div class="mt-2 space-y-1 font-mono">
+                    <div>docker compose down --remove-orphans -v</div>
+                    <div>docker rm -f ship-&lt;project&gt;</div>
+                    <div>docker rmi -f &lt;project&gt;:*</div>
+                    <div>rm -rf &lt;deploy_path&gt;</div>
+                </div>
+            </div>
+            <x-slot name="actions">
+                <x-ui.button type="button" variant="secondary" @click="deleteProjectOpen = false">
+                    Annuler
+                </x-ui.button>
+                <x-ui.button type="button" variant="danger" wire:click="deleteProject" wire:loading.attr="disabled" wire:target="deleteProject" @click="deleteProjectOpen = false">
+                    <span wire:loading.remove wire:target="deleteProject">Continuer</span>
+                    <span wire:loading wire:target="deleteProject" class="inline-flex items-center gap-2">
+                        <x-ui.spinner size="sm" />
+                        Suppression...
+                    </span>
+                </x-ui.button>
+            </x-slot>
+        </x-ui.modal>
+    </div>
 </div>

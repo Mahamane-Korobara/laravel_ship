@@ -104,13 +104,22 @@ class ServerShow extends Component
 
     public function delete(): void
     {
-        abort_if(
-            $this->server->projects()->count() > 0,
-            422,
-            'Impossible de supprimer un serveur avec des projets actifs.'
-        );
+        if ($this->server->projects()->count() > 0) {
+            session()->flash('error', 'Impossible de supprimer un serveur avec des projets actifs.');
+            $this->dispatch('notify', message: 'Impossible de supprimer : des projets sont encore liés.', type: 'error');
+            return;
+        }
 
-        $this->server->delete();
+        try {
+            $this->server->delete();
+        } catch (\Throwable $e) {
+            session()->flash('error', 'Suppression impossible : ' . $e->getMessage());
+            $this->dispatch('notify', message: 'Erreur lors de la suppression du serveur.', type: 'error');
+            return;
+        }
+
+        session()->flash('success', 'Serveur supprimé.');
+        $this->dispatch('notify', message: 'Serveur supprimé avec succès.', type: 'success');
         $this->redirect(route('servers.index'), navigate: true);
     }
 
