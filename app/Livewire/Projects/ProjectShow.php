@@ -33,7 +33,7 @@ class ProjectShow extends Component
         abort_if($project->user_id !== Auth::id(), 403);
         $this->project = $project;
 
-        $this->activeTab = request()->get('tab', 'overview');
+        $this->activeTab = request()->query('tab', 'overview');
 
         $this->loadRollbackReleases();
 
@@ -133,7 +133,7 @@ class ProjectShow extends Component
                 'git_branch'       => $project->github_branch,
                 'triggered_by'     => 'manual',
                 'status'           => 'rolled_back',
-            'log'              => "Retour arrière vers {$this->rollbackTarget} (lien symbolique current mis à jour, conteneur relancé).",
+                'log'              => "Retour arrière vers {$this->rollbackTarget} (lien symbolique current mis à jour, conteneur relancé).",
                 'started_at'       => $now,
                 'finished_at'      => $now,
                 'duration_seconds' => 1,
@@ -237,24 +237,54 @@ class ProjectShow extends Component
     public function deleteProject(): void
     {
         $project = $this->project->fresh(['server', 'deployments', 'envVariables']);
+        $errors = [];
 
-        $this->deleteGithubWebhook($project);
+        // Étape 1: Supprimer le webhook GitHub (non-bloquante)
+        try {
+            $this->deleteGithubWebhook($project);
+        } catch (\Throwable $e) {
+            Log::warning("Erreur suppression webhook GitHub lors de la suppression du projet {$project->id}: {$e->getMessage()}");
+            $errors[] = "Webhook GitHub non supprimé";
+        }
 
+        // Étape 2: Nettoyer le VPS (non-bloquante)
         try {
             $this->cleanupRemoteProject($project);
         } catch (\Throwable $e) {
-            session()->flash('error', "Suppression annulée : {$e->getMessage()}");
-            $this->dispatch('notify', message: 'Erreur lors du nettoyage du VPS.', type: 'error');
+            Log::warning("Erreur nettoyage VPS lors de la suppression du projet {$project->id}: {$e->getMessage()}");
+            $errors[] = "Nettoyage VPS incomplet";
+        }
+
+        // Étape 3: Nettoyer les fichiers locaux (non-bloquante)
+        try {
+            $this->cleanupLocalFiles($project);
+        } catch (\Throwable $e) {
+            Log::warning("Erreur nettoyage fichiers locaux lors de la suppression du projet {$project->id}: {$e->getMessage()}");
+            $errors[] = "Fichiers locaux non nettoyés";
+        }
+
+        // Étape 4: Suppression de la base de données (bloquante)
+        try {
+            $project->envVariables()->delete();
+            $project->deployments()->delete();
+            $project->delete();
+        } catch (\Throwable $e) {
+            session()->flash('error', "Erreur lors de la suppression du projet : {$e->getMessage()}");
+            $this->dispatch('notify', message: 'Erreur lors de la suppression du projet.', type: 'error');
+            Log::error("Erreur suppression du projet {$project->id} de la base de données: {$e->getMessage()}");
             return;
         }
 
-        $this->cleanupLocalFiles($project);
-        $project->envVariables()->delete();
-        $project->deployments()->delete();
-        $project->delete();
+        // Message de succès avec avertissements si nécessaire
+        if (!empty($errors)) {
+            $errorMsg = implode(', ', $errors);
+            session()->flash('warning', "Projet supprimé. Attention: {$errorMsg}.");
+            $this->dispatch('notify', message: "Projet supprimé (avec avertissements: {$errorMsg}).", type: 'warning');
+        } else {
+            session()->flash('success', "Projet supprimé et nettoyé complètement.");
+            $this->dispatch('notify', message: 'Projet supprimé avec succès.', type: 'success');
+        }
 
-        session()->flash('success', "Projet supprimé et nettoyé.");
-        $this->dispatch('notify', message: 'Projet supprimé avec succès.', type: 'success');
         $this->redirect(route('projects.index'), navigate: true);
     }
 
@@ -342,19 +372,27 @@ class ProjectShow extends Component
 
         $deployPath = $project->deploy_path;
         $dockerBin = $this->resolveDockerBin($ssh);
-        $projectKey = strtolower(trim($project->name));
-        $projectKey = preg_replace('/[^a-z0-9]+/', '-', $projectKey) ?? '';
-        $projectKey = trim($projectKey, '-');
+
+        // Sécurisation de la clé projet
+        $projectKey = Str::slug($project->name);
         if ($projectKey === '') {
             $projectKey = basename($deployPath);
         }
 
-        //  Stopper et nettoyer le conteneur/app docker
-        $ssh->exec("if [ -d {$deployPath}/releases ]; then for f in {$deployPath}/releases/*/docker-compose.yml; do [ -f \"\\$f\" ] && (cd \"\\$(dirname \"\\$f\")\" && {$dockerBin} compose down --remove-orphans -v >/dev/null 2>&1 || true); done; fi");
+        // --- LA CORRECTION EST ICI ---
+        // On utilise l'échappement correct pour que PHP ignore le $
+        // On peut aussi utiliser une variable shell plus explicite
+        $cleanupCommand = "if [ -d {$deployPath}/releases ]; then " .
+            "for f in {$deployPath}/releases/*/docker-compose.yml; do " .
+            "[ -f \"\$f\" ] && (cd \"\$(dirname \"\$f\")\" && {$dockerBin} compose down --remove-orphans -v >/dev/null 2>&1 || true); " .
+            "done; fi";
+
+        $ssh->exec($cleanupCommand);
+
         $ssh->exec("{$dockerBin} rm -f ship-{$projectKey} >/dev/null 2>&1 || true");
         $ssh->exec("{$dockerBin} images --format '{{.Repository}}:{{.Tag}}' | grep -E '^{$projectKey}:' | xargs -r {$dockerBin} rmi -f || true");
 
-        //  Nettoyer tous les fichiers du projet
+        // Nettoyage final
         $ssh->exec("sh -lc 'sudo -n rm -rf {$deployPath} >/dev/null 2>&1 || rm -rf {$deployPath} >/dev/null 2>&1 || true'");
 
         $ssh->disconnect();

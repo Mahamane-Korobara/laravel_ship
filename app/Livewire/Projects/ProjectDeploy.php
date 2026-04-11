@@ -139,50 +139,57 @@ class ProjectDeploy extends Component
 
     public function deploy(): void
     {
-        $this->validate();
+        try {
+            $this->validate();
 
-        // Mettre à jour le projet
-        $this->project->update([
-            'name'            => $this->name,
-            'github_branch'   => $this->github_branch,
-            'server_id'       => $this->server_id,
-            'domain'          => $this->domain ?: null,
-            'run_migrations'  => $this->run_migrations,
-            'run_seeders'     => $this->run_seeders,
-            'run_npm_build'   => $this->run_npm_build,
-            'has_queue_worker' => $this->has_queue_worker,
-            'webhook_pending' => false,
-        ]);
+            // Mettre à jour le projet
+            $this->project->update([
+                'name'            => $this->name,
+                'github_branch'   => $this->github_branch,
+                'server_id'       => $this->server_id,
+                'domain'          => $this->domain ?: null,
+                'run_migrations'  => $this->run_migrations,
+                'run_seeders'     => $this->run_seeders,
+                'run_npm_build'   => $this->run_npm_build,
+                'has_queue_worker' => $this->has_queue_worker,
+                'webhook_pending' => false,
+            ]);
 
-        // Sauvegarder les variables .env (chiffrées)
-        $this->project->envVariables()->delete();
+            // Sauvegarder les variables .env (chiffrées)
+            $this->project->envVariables()->delete();
 
-        foreach ($this->envVars as $var) {
-            if (!empty($var['key']) && !empty($var['value'])) {
-                EnvVariable::create([
-                    'project_id' => $this->project->id,
-                    'key'        => trim($var['key']),
-                    'value'      => $var['value'],
-                    'is_secret'  => $var['is_secret'] ?? true,
-                ]);
+            foreach ($this->envVars as $var) {
+                if (!empty($var['key']) && !empty($var['value'])) {
+                    EnvVariable::create([
+                        'project_id' => $this->project->id,
+                        'key'        => trim($var['key']),
+                        'value'      => $var['value'],
+                        'is_secret'  => $var['is_secret'] ?? true,
+                    ]);
+                }
             }
+
+            // Créer le déploiement
+            $deployment = Deployment::create([
+                'project_id'   => $this->project->id,
+                'release_name' => now()->format('Ymd_His'),
+                'git_branch'   => $this->github_branch,
+                'triggered_by' => 'manual',
+                'status'       => 'pending',
+                'env_file_path' => $this->deploymentEnvFilePath,
+            ]);
+
+            // Pousser le job dans la queue
+            RunDeployment::dispatch($deployment, $this->project->fresh());
+
+            session()->flash('success', 'Déploiement lancé avec succès.');
+            $this->dispatch('notify', message: 'Déploiement en cours...', type: 'success');
+            // Rediriger vers le terminal
+            $this->redirect(route('deployments.show', $deployment), navigate: true);
+        } catch (\Exception $e) {
+            session()->flash('error', 'Erreur lors du déploiement : ' . $e->getMessage());
+            $this->dispatch('notify', message: 'Erreur lors du déploiement.', type: 'error');
         }
-
-        // Créer le déploiement
-        $deployment = Deployment::create([
-            'project_id'   => $this->project->id,
-            'release_name' => now()->format('Ymd_His'),
-            'git_branch'   => $this->github_branch,
-            'triggered_by' => 'manual',
-            'status'       => 'pending',
-            'env_file_path' => $this->deploymentEnvFilePath,
-        ]);
-
-        // Pousser le job dans la queue
-        RunDeployment::dispatch($deployment, $this->project->fresh());
-
-        // Rediriger vers le terminal
-        $this->redirect(route('deployments.show', $deployment), navigate: true);
     }
 
     public function runDependencyAudit(): void
@@ -232,8 +239,10 @@ class ProjectDeploy extends Component
             }
 
             $ssh->disconnect();
+            $this->dispatch('notify', message: 'Audit des dépendances complété avec succès.', type: 'success');
         } catch (\Throwable $e) {
             $this->auditError = $e->getMessage();
+            $this->dispatch('notify', message: 'Erreur lors de l\'audit : ' . $e->getMessage(), type: 'error');
         } finally {
             $this->auditRunning = false;
         }

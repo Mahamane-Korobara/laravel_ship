@@ -46,16 +46,16 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
                         {{ $project->status_label }}
                     </span>
                     @if ($project->github_webhook_id)
-                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-                            Webhook actif
-                        </span>
+                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                        Webhook actif
+                    </span>
                     @endif
                     @if ($project->webhook_pending)
-                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                            <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
-                            Nouveau commit disponible
-                        </span>
+                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                        <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+                        Nouveau commit disponible
+                    </span>
                     @endif
                 </div>
                 <div class="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-slate-400 sm:text-sm">
@@ -100,8 +100,7 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
                     wire:model="rollbackTarget"
                     size="sm"
                     class="w-56"
-                    :options="collect($rollbackReleases)->pluck('label', 'name')->toArray()"
-                />
+                    :options="collect($rollbackReleases)->pluck('label', 'name')->toArray()" />
                 <x-ui.button type="button" wire:click="rollbackSymlink" wire:confirm="Confirmer le retour arrière vers {{ $rollbackTarget }} ?" variant="danger" size="sm" wire:loading.attr="disabled" wire:target="rollbackSymlink">
                     <span wire:loading.remove wire:target="rollbackSymlink" class="inline-flex items-center gap-2">
                         <x-icon name="lucide-rotate-ccw" class="h-4 w-4" />
@@ -118,7 +117,7 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
                 <x-icon name="lucide-rocket" class="h-4 w-4" />
                 Déployer
             </x-ui.button>
-            <x-ui.button type="button" variant="danger" size="sm" wire:loading.attr="disabled" wire:target="deleteProject" @click="deleteProjectOpen = true">
+            <x-ui.button type="button" variant="danger" size="sm" wire:loading.attr="disabled" wire:target="deleteProject" @click="deleteProjectOpen = true" class="bg-transparent border border-rose-500/50 text-rose-300 hover:bg-rose-500/10">
                 <span wire:loading.remove wire:target="deleteProject" class="inline-flex items-center gap-2">
                     <x-icon name="lucide-trash-2" class="h-4 w-4" />
                     Supprimer
@@ -296,33 +295,33 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
         </div>
         <div class="divide-y divide-slate-800">
             @if ($backupsError)
-                <div class="px-5 py-4 text-sm text-rose-300">{{ $backupsError }}</div>
+            <div class="px-5 py-4 text-sm text-rose-300">{{ $backupsError }}</div>
             @elseif (!$backupsLoaded)
-                <div class="px-5 py-4 text-sm text-slate-400">Chargement...</div>
+            <div class="px-5 py-4 text-sm text-slate-400">Chargement...</div>
             @elseif (empty($backups))
-                <div class="px-5 py-8 text-center text-sm text-slate-500">Aucune sauvegarde trouvée.</div>
+            <div class="px-5 py-8 text-center text-sm text-slate-500">Aucune sauvegarde trouvée.</div>
             @else
-                @foreach ($backups as $backup)
-                <div class="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-white">{{ $backup['name'] }}</p>
-                        <p class="text-xs text-slate-500">{{ $backup['date'] }}</p>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="text-xs text-slate-400">{{ $backup['size'] }}</span>
-                        <x-ui.button type="button" wire:click="downloadBackup('{{ $backup['name'] }}')" variant="default" size="sm" wire:loading.attr="disabled" wire:target="downloadBackup">
-                            <span wire:loading.remove wire:target="downloadBackup" class="inline-flex items-center gap-2">
-                                <x-icon name="lucide-download" class="h-4 w-4" />
-                                Télécharger
-                            </span>
-                            <span wire:loading wire:target="downloadBackup" class="inline-flex items-center gap-2">
-                                <x-ui.spinner size="sm" />
-                                Téléchargement...
-                            </span>
-                        </x-ui.button>
-                    </div>
+            @foreach ($backups as $backup)
+            <div class="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm font-medium text-white">{{ $backup['name'] }}</p>
+                    <p class="text-xs text-slate-500">{{ $backup['date'] }}</p>
                 </div>
-                @endforeach
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs text-slate-400">{{ $backup['size'] }}</span>
+                    <x-ui.button type="button" wire:click="downloadBackup('{{ $backup['name'] }}')" variant="default" size="sm" wire:loading.attr="disabled" wire:target="downloadBackup">
+                        <span wire:loading.remove wire:target="downloadBackup" class="inline-flex items-center gap-2">
+                            <x-icon name="lucide-download" class="h-4 w-4" />
+                            Télécharger
+                        </span>
+                        <span wire:loading wire:target="downloadBackup" class="inline-flex items-center gap-2">
+                            <x-ui.spinner size="sm" />
+                            Téléchargement...
+                        </span>
+                    </x-ui.button>
+                </div>
+            </div>
+            @endforeach
             @endif
         </div>
     </div>
@@ -335,12 +334,13 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
                 (conteneurs, images, volumes et fichiers).
             </p>
             <div class="rounded-xl border border-[#1f2a44] bg-[#0b1426] p-3 text-xs text-slate-300">
-                <div class="font-semibold text-slate-100">Suppression côté VPS :</div>
+                <div class="font-semibold text-slate-100">Nettoyage automatique :</div>
                 <div class="mt-2 space-y-1 font-mono">
-                    <div>docker compose down --remove-orphans -v</div>
-                    <div>docker rm -f ship-&lt;project&gt;</div>
-                    <div>docker rmi -f &lt;project&gt;:*</div>
-                    <div>rm -rf &lt;deploy_path&gt;</div>
+                    <div>→ Webhook GitHub supprimé</div>
+                    <div>→ Conteneurs Docker arrêtés</div>
+                    <div>→ Images Docker supprimées</div>
+                    <div>→ Fichiers déployés supprimés</div>
+                    <div>→ Enregistrement supprimé de la base</div>
                 </div>
             </div>
             <x-slot name="actions">
@@ -348,7 +348,10 @@ $activeTab = $activeTab ?? request()->get('tab', 'overview');
                     Annuler
                 </x-ui.button>
                 <x-ui.button type="button" variant="danger" wire:click="deleteProject" wire:loading.attr="disabled" wire:target="deleteProject" @click="deleteProjectOpen = false">
-                    <span wire:loading.remove wire:target="deleteProject">Continuer</span>
+                    <span wire:loading.remove wire:target="deleteProject" class="inline-flex items-center gap-2">
+                        <x-icon name="lucide-trash-2" class="h-4 w-4" />
+                        Continuer
+                    </span>
                     <span wire:loading wire:target="deleteProject" class="inline-flex items-center gap-2">
                         <x-ui.spinner size="sm" />
                         Suppression...

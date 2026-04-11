@@ -34,6 +34,7 @@ class ProjectImport extends Component
 
         if (!$user->hasGithubConnected()) {
             $this->error   = 'Connecte ton compte GitHub pour importer un projet.';
+            $this->dispatch('notify', message: 'Compte GitHub non connecté.', type: 'error');
             $this->loading = false;
             return;
         }
@@ -43,6 +44,8 @@ class ProjectImport extends Component
             $this->repos = $github->getUserRepos();
         } catch (\Exception $e) {
             $this->error = 'Impossible de charger les dépôts : ' . $e->getMessage();
+            $this->dispatch('notify', message: 'Erreur lors du chargement des dépôts GitHub.', type: 'error');
+            Log::error("Erreur chargement repos GitHub pour l'utilisateur {$user->id}: {$e->getMessage()}");
         } finally {
             $this->loading = false;
         }
@@ -65,28 +68,38 @@ class ProjectImport extends Component
 
         if ($exists) {
             session()->flash('error', 'Ce dépôt est déjà importé.');
+            $this->dispatch('notify', message: 'Ce dépôt est déjà importé.', type: 'error');
             return;
         }
 
-        $repoName = explode('/', $repoFullName)[1];
-        $basePath = config('deploy.base_path', '/var/www/projects');
+        try {
+            $repoName = explode('/', $repoFullName)[1];
+            $basePath = config('deploy.base_path', '/var/www/projects');
 
-        $project = Project::create([
-            'user_id'     => $user->id,
-            'server_id'   => $user->servers()->first()?->id,
-            'name'        => $repoName,
-            'github_repo' => $repoFullName,
-            'deploy_path' => "{$basePath}/{$repoName}",
-            'status'      => 'idle',
-        ]);
+            $project = Project::create([
+                'user_id'     => $user->id,
+                'server_id'   => $user->servers()->first()?->id,
+                'name'        => $repoName,
+                'github_repo' => $repoFullName,
+                'deploy_path' => "{$basePath}/{$repoName}",
+                'status'      => 'idle',
+            ]);
 
-        if (!$this->createGithubWebhook($user, $project, $repoFullName)) {
-            $project->delete();
-            session()->flash('error', 'Import annulé : impossible de créer le webhook GitHub.');
-            return;
+            if (!$this->createGithubWebhook($user, $project, $repoFullName)) {
+                $project->delete();
+                session()->flash('error', 'Import annulé : impossible de créer le webhook GitHub.');
+                $this->dispatch('notify', message: 'Erreur lors de la création du webhook GitHub.', type: 'error');
+                return;
+            }
+
+            session()->flash('success', "Projet importé avec succès.");
+            $this->dispatch('notify', message: 'Projet importé avec succès. Configuration disponible.', type: 'success');
+            $this->redirect(route('projects.deploy', $project), navigate: true);
+        } catch (\Throwable $e) {
+            session()->flash('error', 'Import échoué : ' . $e->getMessage());
+            $this->dispatch('notify', message: 'Erreur lors de l\'import du projet.', type: 'error');
+            Log::error("Erreur import du dépôt {$repoFullName} pour l'utilisateur {$user->id}: {$e->getMessage()}");
         }
-
-        $this->redirect(route('projects.deploy', $project), navigate: true);
     }
 
     private function createGithubWebhook(User $user, Project $project, string $repoFullName): bool

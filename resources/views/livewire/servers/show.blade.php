@@ -1,16 +1,16 @@
 @php
-    $statusClass = match ($server->status) {
-        'active' => 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-        'inactive' => 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-        'error' => 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-        default => 'bg-slate-700/40 text-slate-300 border-slate-600/30',
-    };
-    $statusLabel = match ($server->status) {
-        'active' => 'Actif',
-        'inactive' => 'Inactif',
-        'error' => 'Erreur',
-        default => 'Inconnu',
-    };
+$statusClass = match ($server->status) {
+'active' => 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+'inactive' => 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+'error' => 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+default => 'bg-slate-700/40 text-slate-300 border-slate-600/30',
+};
+$statusLabel = match ($server->status) {
+'active' => 'Actif',
+'inactive' => 'Inactif',
+'error' => 'Erreur',
+default => 'Inconnu',
+};
 @endphp
 
 <div class="space-y-6" x-data="{ deleteServerOpen: false }">
@@ -63,23 +63,23 @@
     </div>
 
     <div x-data="{ agentModalOpen: false }" @keydown.escape.window="agentModalOpen = false">
-    <x-ui.card class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-                <div class="text-sm font-semibold text-white">Agent LaravelShip</div>
-                <div class="mt-1 text-xs text-slate-400">
-                    @if ($server->agent_enabled)
+        <x-ui.card class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <div class="text-sm font-semibold text-white">Agent LaravelShip</div>
+                    <div class="mt-1 text-xs text-slate-400">
+                        @if ($server->agent_enabled)
                         Actif · {{ $server->agent_url ?? 'URL inconnue' }}
-                    @else
+                        @else
                         Non installé
+                        @endif
+                    </div>
+                    @if ($server->agent_last_seen_at)
+                    <div class="mt-1 text-xs text-slate-500">Dernier signal: {{ $server->agent_last_seen_at->format('d/m/Y H:i') }}</div>
                     @endif
                 </div>
-                @if ($server->agent_last_seen_at)
-                    <div class="mt-1 text-xs text-slate-500">Dernier signal: {{ $server->agent_last_seen_at->format('d/m/Y H:i') }}</div>
-                @endif
-            </div>
-            <div class="flex items-center gap-2">
-                @if (!$server->agent_enabled)
+                <div class="flex items-center gap-2">
+                    @if (!$server->agent_enabled)
                     <x-ui.button type="button" variant="primary" @click="agentModalOpen = true" wire:loading.attr="disabled" wire:target="installAgent">
                         <span wire:loading.remove wire:target="installAgent">Installer l’agent</span>
                         <span wire:loading wire:target="installAgent" class="inline-flex items-center gap-2">
@@ -87,7 +87,7 @@
                             Installation...
                         </span>
                     </x-ui.button>
-                @else
+                    @else
                     <x-ui.button type="button" wire:click="removeAgent" variant="danger" wire:loading.attr="disabled" wire:target="removeAgent" class="bg-transparent border border-rose-500/50 text-rose-300 hover:bg-rose-500/10">
                         <span wire:loading.remove wire:target="removeAgent">Supprimer l’agent</span>
                         <span wire:loading wire:target="removeAgent" class="inline-flex items-center gap-2">
@@ -95,15 +95,15 @@
                             Suppression...
                         </span>
                     </x-ui.button>
-                @endif
+                    @endif
+                </div>
             </div>
-        </div>
-        <div class="{{ $agentResult ? 'mt-3' : 'hidden' }}" wire:loading.class.remove="hidden" wire:target="installAgent,removeAgent">
-            <x-ui.terminal title="Agent LaravelShip" minHeight="160px" maxHeight="280px" stream="agentResult" variant="{{ str_contains($agentResult ?? '', 'Erreur') ? 'error' : ($agentResult ? 'success' : 'info') }}">
-                {{ $agentResult ?: ($removingAgent ? '→ Suppression en cours…' : '→ Installation en cours…') }}
-            </x-ui.terminal>
-        </div>
-    </x-ui.card>
+            <div class="{{ $agentResult ? 'mt-3' : 'hidden' }}" wire:loading.class.remove="hidden" wire:target="installAgent,removeAgent">
+                <x-ui.terminal title="Agent LaravelShip" minHeight="160px" maxHeight="280px" stream="agentResult" variant="{{ str_contains($agentResult ?? '', 'Erreur') ? 'error' : ($agentResult ? 'success' : 'info') }}">
+                    {{ $agentResult ?: ($removingAgent ? '→ Suppression en cours…' : '→ Installation en cours…') }}
+                </x-ui.terminal>
+            </div>
+        </x-ui.card>
         <div x-show="agentModalOpen" x-cloak x-transition.opacity class="fixed inset-0 z-50">
             <x-ui.modal title="Installer l’agent LaravelShip">
                 <p>
@@ -210,27 +210,27 @@
         </div>
         <div class="space-y-3">
             @forelse ($projects as $project)
-                @php
-                    $projectBadge = match ($project->status) {
-                        'deployed' => 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-                        'deploying' => 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-                        'failed' => 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-                        default => 'bg-slate-700/40 text-slate-300 border-slate-600/30',
-                    };
-                @endphp
-                <a href="{{ route('projects.show', $project) }}" wire:navigate class="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:bg-slate-900/80 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-sm font-semibold text-white">{{ $project->name }}</p>
-                        <p class="text-xs text-slate-400">{{ $project->github_repo }}</p>
-                    </div>
-                    <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium {{ $projectBadge }}">
-                        {{ $project->status_label }}
-                    </span>
-                </a>
-            @empty
-                <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-500">
-                    Aucun projet hébergé sur ce serveur.
+            @php
+            $projectBadge = match ($project->status) {
+            'deployed' => 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+            'deploying' => 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+            'failed' => 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+            default => 'bg-slate-700/40 text-slate-300 border-slate-600/30',
+            };
+            @endphp
+            <a href="{{ route('projects.show', $project) }}" wire:navigate class="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:bg-slate-900/80 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm font-semibold text-white">{{ $project->name }}</p>
+                    <p class="text-xs text-slate-400">{{ $project->github_repo }}</p>
                 </div>
+                <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium {{ $projectBadge }}">
+                    {{ $project->status_label }}
+                </span>
+            </a>
+            @empty
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-500">
+                Aucun projet hébergé sur ce serveur.
+            </div>
             @endforelse
         </div>
     </section>
@@ -242,16 +242,16 @@
         </div>
         <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">
             @if (count($remoteContainers) === 0)
-                Aucun conteneur détecté.
+            Aucun conteneur détecté.
             @else
-                <ul class="grid gap-2 sm:grid-cols-2">
-                    @foreach ($remoteContainers as $remoteContainer)
-                        <li class="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-slate-200">
-                            <x-icon name="lucide-server" class="h-4 w-4 text-slate-400" />
-                            {{ $remoteContainer }}
-                        </li>
-                    @endforeach
-                </ul>
+            <ul class="grid gap-2 sm:grid-cols-2">
+                @foreach ($remoteContainers as $remoteContainer)
+                <li class="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-slate-200">
+                    <x-icon name="lucide-server" class="h-4 w-4 text-slate-400" />
+                    {{ $remoteContainer }}
+                </li>
+                @endforeach
+            </ul>
             @endif
         </div>
     </section>
@@ -265,8 +265,9 @@
             <div class="rounded-xl border border-[#1f2a44] bg-[#0b1426] p-3 text-xs text-slate-300">
                 <div class="font-semibold text-slate-100">Vérifications :</div>
                 <div class="mt-2 space-y-1 font-mono">
-                    <div>0 projet actif lié</div>
-                    <div>Suppression locale dans la base</div>
+                    <div>→ {{ $server->projects()->count() }} projet(s) lié(s)</div>
+                    <div>→ Suppression locale dans la base</div>
+                    <div>→ Accès distant non affecté</div>
                 </div>
             </div>
             <x-slot name="actions">
@@ -274,7 +275,10 @@
                     Annuler
                 </x-ui.button>
                 <x-ui.button type="button" variant="danger" wire:click="delete" wire:loading.attr="disabled" wire:target="delete" @click="deleteServerOpen = false">
-                    <span wire:loading.remove wire:target="delete">Continuer</span>
+                    <span wire:loading.remove wire:target="delete" class="inline-flex items-center gap-2">
+                        <x-icon name="lucide-trash-2" class="h-4 w-4" />
+                        Continuer
+                    </span>
                     <span wire:loading wire:target="delete" class="inline-flex items-center gap-2">
                         <x-ui.spinner size="sm" />
                         Suppression...
