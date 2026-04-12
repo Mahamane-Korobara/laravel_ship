@@ -23,6 +23,12 @@ class ProjectList extends Component
         $this->view = $view;
     }
 
+    public function deleteProjectCache(?int $userId = null): void
+    {
+        $id = $userId ?? Auth::id();
+        Cache::forget("user:{$id}:remote-projects");
+    }
+
     public function render()
     {
         $user = Auth::user();
@@ -54,12 +60,16 @@ class ProjectList extends Component
             now()->addSeconds(60),
             function () use ($user, $projects) {
                 $existingPaths = $projects->pluck('deploy_path')->filter()->all();
-                $existingNames = $projects->pluck('name')->map(fn ($n) => strtolower($n))->all();
+                $existingNames = $projects->pluck('name')->map(fn($n) => strtolower($n))->all();
                 $found = [];
 
                 foreach ($user->servers as $server) {
                     try {
                         $ssh = app(RemoteRunnerFactory::class)->forServer($server);
+                        // Timeout court pour la découverte (5s au lieu de 60s)
+                        if (method_exists($ssh, 'setTimeout')) {
+                            $ssh->setTimeout(5);
+                        }
                         $output = trim($ssh->exec("docker ps --format '{{.Names}}' 2>/dev/null || true"));
                         $ssh->disconnect();
 

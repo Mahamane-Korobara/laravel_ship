@@ -8,6 +8,7 @@ use App\Services\GitHubService;
 use App\Services\RemoteRunner;
 use App\Services\RemoteRunnerFactory;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -236,6 +237,10 @@ class ProjectShow extends Component
 
     public function deleteProject(): void
     {
+        // 1. On récupère l'ID de l'utilisateur actuel pour le cache plus tard
+        $userId = Auth::id();
+
+        // 2. On rafraîchit les relations pour être sûr d'avoir les données à jour
         $project = $this->project->fresh(['server', 'deployments', 'envVariables']);
         $errors = [];
 
@@ -265,26 +270,33 @@ class ProjectShow extends Component
 
         // Étape 4: Suppression de la base de données (bloquante)
         try {
+            // On supprime d'abord les relations pour éviter les erreurs de contraintes de clés étrangères
             $project->envVariables()->delete();
             $project->deployments()->delete();
             $project->delete();
         } catch (\Throwable $e) {
+            Log::error("Erreur suppression du projet {$project->id} de la base de données: {$e->getMessage()}");
             session()->flash('error', "Erreur lors de la suppression du projet : {$e->getMessage()}");
             $this->dispatch('notify', message: 'Erreur lors de la suppression du projet.', type: 'error');
-            Log::error("Erreur suppression du projet {$project->id} de la base de données: {$e->getMessage()}");
             return;
         }
 
-        // Message de succès avec avertissements si nécessaire
+        // Gestion des notifications de succès/warning
         if (!empty($errors)) {
             $errorMsg = implode(', ', $errors);
-            session()->flash('warning', "Projet supprimé. Attention: {$errorMsg}.");
-            $this->dispatch('notify', message: "Projet supprimé (avec avertissements: {$errorMsg}).", type: 'warning');
+            session()->flash('warning', "Projet supprimé de la base, mais des résidus peuvent subsister : {$errorMsg}.");
+            $this->dispatch('notify', message: "Nettoyage partiel effectué.", type: 'warning');
         } else {
-            session()->flash('success', "Projet supprimé et nettoyé complètement.");
+            session()->flash('success', "Projet supprimé et nettoyé complètement du serveur.");
             $this->dispatch('notify', message: 'Projet supprimé avec succès.', type: 'success');
         }
 
+        // 3. Invalider le cache des projets distants pour cet utilisateur spécifique
+        if ($userId) {
+            Cache::forget("user:{$userId}:remote-projects");
+        }
+
+        // 4. Redirection vers la liste des projets
         $this->redirect(route('projects.index'), navigate: true);
     }
 

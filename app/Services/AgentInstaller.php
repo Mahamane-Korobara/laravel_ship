@@ -39,9 +39,25 @@ class AgentInstaller
             $ssh->execStreaming("rm -rf {$stagingDir}", $emit);
         }
 
+        $emit('→ Nettoyage ancien conteneur...');
+        $ssh->exec("{$dockerBin} rm -f laravelship-agent 2>/dev/null || true");
+
         $emit('→ Build & démarrage agent...');
         $ssh->execStreaming("cd {$baseDir} && {$dockerBin} compose up -d --build", $emit);
-        $emit('→ Agent démarré.');
+
+        $emit('→ Vérification du démarrage...');
+        $checkCmd = "{$dockerBin} ps --filter name=laravelship-agent --format '{{.Status}}' 2>/dev/null || true";
+        $status = trim($ssh->exec($checkCmd));
+
+        if (strpos($status, 'Up') === false) {
+            // Le conteneur n'est pas actif, afficher les logs d'erreur
+            $logs = $ssh->exec("cd {$baseDir} && {$dockerBin} compose logs --tail=30 2>/dev/null || true");
+            $emit('⚠️  Conteneur non actif. Logs:');
+            $emit($logs);
+            throw new \RuntimeException("Agent n'a pas démarré correctement. Vérifiez les logs ci-dessus.");
+        }
+
+        $emit('→ Agent démarré ✓');
         $ssh->disconnect();
     }
 
@@ -62,9 +78,37 @@ class AgentInstaller
         $ssh->execStreaming("if [ -d {$baseDir} ]; then cd {$baseDir} && {$dockerBin} compose down --remove-orphans || true; else echo 'Aucun dossier agent.'; fi", $emit);
         $emit('→ Suppression du conteneur...');
         $ssh->execStreaming("{$dockerBin} rm -f laravelship-agent 2>/dev/null || true", $emit);
+
+        $emit('→ Suppression des images orphelines...');
+        $ssh->exec("{$dockerBin} image prune -f --filter 'dangling=true' 2>/dev/null || true");
+
+        $emit('→ Suppression des volumes orphelines...');
+        $ssh->exec("{$dockerBin} volume prune -f 2>/dev/null || true");
+
+        $emit('→ Suppression des réseaux orphelines...');
+        $ssh->exec("{$dockerBin} network prune -f 2>/dev/null || true");
+
         $emit('→ Nettoyage fichiers...');
         $ssh->execStreaming("sudo -n rm -rf {$baseDir} 2>/dev/null || rm -rf {$baseDir}", $emit);
-        $emit('→ Agent supprimé.');
+
+        $emit('→ Vérification du nettoyage...');
+        $containerExists = trim($ssh->exec("{$dockerBin} ps -a --filter name=laravelship-agent --format '{{.ID}}' 2>/dev/null || true"));
+        if ($containerExists !== '') {
+            $emit('⚠️  Conteneur encore présent, suppression forcée...');
+            $ssh->exec("{$dockerBin} rm -f {$containerExists} 2>/dev/null || true");
+        } else {
+            $emit('✓ Pas de conteneur résiduel');
+        }
+
+        $dirExists = trim($ssh->exec("[ -d {$baseDir} ] && echo 'oui' || echo 'non'"));
+        if ($dirExists === 'oui') {
+            $emit('⚠️  Dossier encore présent, suppression forcée...');
+            $ssh->exec("sudo -n rm -rf {$baseDir} 2>/dev/null || rm -rf {$baseDir}");
+        } else {
+            $emit('✓ Dossier supprimé');
+        }
+
+        $emit('→ Agent complètement supprimé ✓');
         $ssh->disconnect();
     }
 
@@ -150,10 +194,14 @@ class AgentInstaller
             WORKDIR /app
 
             # On ne garde que le strict nécessaire pour PHP et les outils de base.
-            # On retire docker.io et docker-compose-plugin car l'agent utilisera 
-            # le socket Docker de la machine hôte.
+            # On installe docker-ce-cli pour accéder à l'API Docker via le socket de la machine hôte.
             RUN apt-get update \\
-                && apt-get install -y git curl unzip \\
+                && apt-get install -y git curl unzip ca-certificates gnupg lsb-release \\
+                && mkdir -m 0755 -p /etc/apt/keyrings \\
+                && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \\
+                && echo "deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \$(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \\
+                && apt-get update \\
+                && apt-get install -y docker-ce-cli \\
                 && rm -rf /var/lib/apt/lists/*
 
             COPY agent.php /app/agent.php
@@ -185,18 +233,20 @@ $token = getenv('SHIP_AGENT_TOKEN') ?: '';
 $allowAll = (getenv('SHIP_AGENT_ALLOW_ALL') ?: 'true') === 'true';
 $allowedPrefixes = array_filter(array_map('trim', explode(',', getenv('SHIP_AGENT_ALLOW_PREFIXES') ?: 'docker,git,ln,mkdir,rm,cp,mv,chmod,chown,find,ls,echo,cat,sed,awk,tail,head,cut,tr,xargs,touch,test,sh')));
 
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+
+// /health est accessible sans token pour valider le tunnel SSH
+if ($method === 'GET' && $path === '/health') {
+    echo json_encode(['ok' => true, 'status' => 'alive']);
+    exit;
+}
+
+// Toutes les autres routes nécessitent le token
 $requestToken = $_SERVER['HTTP_X_SHIP_TOKEN'] ?? '';
 if (!$token || $requestToken !== $token) {
     http_response_code(401);
     echo json_encode(['ok' => false, 'error' => 'Unauthorized']);
-    exit;
-}
-
-$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-
-if ($method === 'GET' && $path === '/health') {
-    echo json_encode(['ok' => true, 'status' => 'alive']);
     exit;
 }
 
@@ -308,6 +358,7 @@ services:
       - /var/www:/var/www
     ports:
       - "{$port}:8081"
+    user: "0:0"
 YAML;
     }
 }

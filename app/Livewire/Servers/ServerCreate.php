@@ -146,6 +146,7 @@ class ServerCreate extends Component
         ]);
 
         session()->flash('success', "Serveur \"{$server->name}\" ajouté avec succès !");
+        $this->dispatch('notify', message: "Serveur \"{$server->name}\" ajouté avec succès !", type: 'success');
         $this->redirect(route('servers.show', $server), navigate: true);
     }
 

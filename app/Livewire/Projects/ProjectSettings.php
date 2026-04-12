@@ -5,6 +5,7 @@ namespace App\Livewire\Projects;
 use App\Models\Project;
 use App\Models\Server;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -33,7 +34,10 @@ class ProjectSettings extends Component
             'name'          => 'required|string|max:255',
             'github_branch' => 'required|string',
             'domain'        => 'nullable|string|max:255',
-            'server_id'     => 'nullable|exists:servers,id',
+            'server_id'     => [
+                'nullable',
+                Rule::exists('servers', 'id')->where('user_id', Auth::id()), // ← Sécurité : vérifie que le serveur appartient à l'utilisateur
+            ],
             'docker_image' => 'nullable|string|max:255',
             'registry' => 'nullable|string|max:255',
             'tags' => 'nullable|array',

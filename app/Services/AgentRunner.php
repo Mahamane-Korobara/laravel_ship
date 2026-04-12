@@ -9,6 +9,8 @@ use RuntimeException;
 class AgentRunner implements RemoteRunner
 {
     private Client $client;
+    // Timeout pour les opérations longues (pre-pull Docker, build, clone repo, etc) -> 2 minutes = 120s
+    private int $timeout = 120;
 
     public function __construct(
         private string $baseUrl,
@@ -17,8 +19,20 @@ class AgentRunner implements RemoteRunner
     ) {
         $this->client = new Client([
             'base_uri' => rtrim($this->baseUrl, '/') . '/',
-            'timeout' => 60,
+            'timeout' => $this->timeout,  // Timeout total pour la requête
+            'connect_timeout' => 5,      // 5s pour se connecter via tunnel
         ]);
+    }
+
+    public function setTimeout(int $seconds): self
+    {
+        $this->timeout = $seconds;
+        $this->client = new Client([
+            'base_uri' => rtrim($this->baseUrl, '/') . '/',
+            'timeout' => $seconds,
+            'connect_timeout' => 5,
+        ]);
+        return $this;
     }
 
     public function exec(string $command): string
@@ -109,4 +123,3 @@ class AgentRunner implements RemoteRunner
         return $data;
     }
 }
-

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\GitHubService;
 use App\Services\RemoteRunnerFactory;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -50,7 +51,11 @@ class ProjectDeploy extends Component
         $rules = [
             'name'          => 'required|string|max:255',
             'github_branch' => 'required|string',
-            'server_id'     => 'required|integer|exists:servers,id',
+            'server_id'     => [
+                'required',
+                'integer',
+                Rule::exists('servers', 'id')->where('user_id', Auth::id()), // ← Sécurité : vérifie que le serveur appartient à l'utilisateur
+            ],
             'domain'        => 'nullable|string|max:255',
         ];
 
@@ -73,7 +78,7 @@ class ProjectDeploy extends Component
         // Pré-remplir le formulaire
         $this->name          = $project->name;
         $this->github_branch = $project->github_branch;
-        $this->server_id     = $project->server_id ?? 0;
+        $this->server_id     = 0;  // ← Ne pas pré-remplir - forcer l'utilisateur à sélectionner
         $this->domain        = $project->domain ?? '';
         $this->run_migrations   = $project->run_migrations;
         $this->run_seeders      = $project->run_seeders;
@@ -140,7 +145,17 @@ class ProjectDeploy extends Component
     public function deploy(): void
     {
         try {
+            // Forcer le serveur_id à être un integer (conversion de type HTML -> int)
+            $this->server_id = (int) $this->server_id;
+
             $this->validate();
+
+            // DEBUG : vérifier la valeur après conversion
+            \Log::info('ProjectDeploy::deploy() - server_id après conversion', [
+                'server_id' => $this->server_id,
+                'server_id_type' => gettype($this->server_id),
+                'project_id' => $this->project->id,
+            ]);
 
             // Mettre à jour le projet
             $this->project->update([
@@ -220,12 +235,16 @@ class ProjectDeploy extends Component
 
             $dockerBin = $dockerVersion !== '' ? 'docker' : 'sudo -n docker';
             $composeVersion = trim($ssh->exec("{$dockerBin} compose version 2>/dev/null || true"));
-            $psOutput = trim($ssh->exec("{$dockerBin} ps --format '{{.Names}}' 2>/dev/null || true"));
+
+            // Test l'accès Docker avec une commande d'info
+            // Capture aussi stderr pour voir les erreurs de permission
+            $dockerInfoTest = $ssh->exec("{$dockerBin} info >/dev/null 2>&1 && echo 'OK' || echo 'FAILED'");
+            $dockerAccessCheck = trim($dockerInfoTest) === 'OK' ? 'Accessible' : '';
 
             $checks = [
                 ['label' => 'Docker Engine', 'value' => $dockerVersion],
                 ['label' => 'Docker Compose', 'value' => $composeVersion],
-                ['label' => 'Acces Docker', 'value' => $psOutput],
+                ['label' => 'Acces Docker', 'value' => $dockerAccessCheck],
             ];
 
             foreach ($checks as $check) {

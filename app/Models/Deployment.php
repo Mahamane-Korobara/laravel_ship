@@ -65,7 +65,9 @@ class Deployment extends Model
     //  Ajouter une ligne au log 
     public function appendLog(string $line): void
     {
-        $this->update(['log' => $this->log . $line . "\n"]);
+        // Utilisé append() au lieu de update() pour éviter les UPDATE multiples à la BD
+        // Cette méthode accumule les logs en mémoire et sera sauvegardée à la fin
+        $this->log .= $line . "\n";
     }
 
     //  Durée lisible 

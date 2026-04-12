@@ -5,13 +5,19 @@ namespace App\Services;
 use App\Events\DeploymentLogReceived;
 use App\Models\Deployment;
 use App\Models\Project;
+use App\Services\Database\DatabaseProvisionerFactory;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class DeploymentService
 {
     private ?RemoteRunner $ssh = null;
     private array $envConfig = [];
+    private string $envContent = '';
+    private bool $dbCredentialsGenerated = false;
+    private ?string $dbAdminUser = null;
+    private ?string $dbAdminPass = null;
     private bool $dockerChecked = false;
     private string $dockerBin = 'docker';
 
@@ -64,7 +70,10 @@ class DeploymentService
             $this->step('⚙️  Ecriture du fichier .env...');
             $this->writeEnv($deployPath);
 
-            $this->step('🐳 Build de l\'image Docker...');
+            $this->step('🗄️  Provisionnement de la base de données...');
+            $this->provisionDatabase($deployPath);
+
+            $this->step('�🐳 Build de l\'image Docker...');
             $this->ensureDockerAvailable();
             $this->ensureDockerfile($releasePath);
             $this->buildDockerImage($releasePath, $imageTag);
@@ -188,7 +197,7 @@ class DeploymentService
 
         $this->ssh->execStreaming(
             "git clone --depth=1 --branch={$branch} https://github.com/{$repo}.git {$releasePath} 2>&1",
-            fn ($line) => $this->log($line)
+            fn($line) => $this->log($line)
         );
 
         $this->assertReleaseLooksValid($releasePath, $repo, $branch);
@@ -214,7 +223,7 @@ class DeploymentService
 
         throw new RuntimeException(
             "Le clone du depot est incomplet ou invalide (repo {$repo}, branche {$branch}). "
-            . "Fichiers Laravel attendus absents: artisan/composer.json/public/index.php.\nContenu release:\n{$listing}"
+                . "Fichiers Laravel attendus absents: artisan/composer.json/public/index.php.\nContenu release:\n{$listing}"
         );
     }
 
@@ -239,7 +248,7 @@ class DeploymentService
 
         if ($envContent === null) {
             $envContent = $this->project->envVariables
-                ->map(fn ($var) => "{$var->key}={$var->value}")
+                ->map(fn($var) => "{$var->key}={$var->value}")
                 ->join("\n");
             $this->log('  .env construit a partir des variables de la base de donnees ✓');
         }
@@ -249,7 +258,15 @@ class DeploymentService
         }
 
         $envContent = $this->ensureAppKeyInEnv((string) $envContent);
+        $envContent = $this->normalizeDatabaseEnv($envContent);
         $this->envConfig = $this->parseEnv($envContent);
+        if ($this->dbAdminUser && empty($this->envConfig['DB_ADMIN_USERNAME'])) {
+            $this->envConfig['DB_ADMIN_USERNAME'] = $this->dbAdminUser;
+        }
+        if ($this->dbAdminPass !== null && empty($this->envConfig['DB_ADMIN_PASSWORD'])) {
+            $this->envConfig['DB_ADMIN_PASSWORD'] = $this->dbAdminPass;
+        }
+        $this->envContent = $envContent; // Store for provisionMysql() access
 
         $this->ssh->uploadContent($envContent, $sharedEnvPath);
         $this->log('  .env ecrit dans shared/ ✓');
@@ -280,6 +297,147 @@ class DeploymentService
         $this->log('  APP_KEY generee ✓');
 
         return $envContent;
+    }
+
+    private function normalizeDatabaseEnv(string $envContent): string
+    {
+        $config = $this->parseEnv($envContent);
+        $driver = $config['DB_CONNECTION'] ?? 'mysql';
+
+        if ($driver === 'sqlite') {
+            return $envContent;
+        }
+
+        $dbUser = $config['DB_USERNAME'] ?? '';
+        $dbPass = $config['DB_PASSWORD'] ?? '';
+        $dbName = $config['DB_DATABASE'] ?? '';
+        $adminUser = $config['DB_ADMIN_USERNAME'] ?? null;
+        $adminPass = $config['DB_ADMIN_PASSWORD'] ?? null;
+        $changed = false;
+
+        if ($adminUser !== null || $adminPass !== null) {
+            $this->dbAdminUser = $adminUser ?: $this->dbAdminUser;
+            $this->dbAdminPass = $adminPass ?? $this->dbAdminPass;
+            $envContent = $this->removeEnvKey($envContent, 'DB_ADMIN_USERNAME');
+            $envContent = $this->removeEnvKey($envContent, 'DB_ADMIN_PASSWORD');
+            $changed = true;
+        }
+
+        if ($dbName === '') {
+            $dbName = $this->normalizeProjectKey($this->project->name ?: 'laravelship');
+            $envContent = $this->setEnvValue($envContent, 'DB_DATABASE', $dbName);
+            $this->log('  DB_DATABASE manquant: valeur generee.');
+            $changed = true;
+        }
+
+        if ($dbUser === '') {
+            $dbUser = 'laravelship';
+            $envContent = $this->setEnvValue($envContent, 'DB_USERNAME', $dbUser);
+            $this->log('  DB_USERNAME manquant: valeur par defaut appliquee.');
+            $changed = true;
+        }
+
+        if ($dbUser === 'root') {
+            if (!$adminUser) {
+                $this->dbAdminUser = 'root';
+                $this->dbAdminPass = $dbPass !== '' ? $dbPass : null;
+            }
+
+            $dbUser = 'laravelship';
+            $dbPass = '';
+            $envContent = $this->setEnvValue($envContent, 'DB_USERNAME', $dbUser);
+            $this->log('  DB_USERNAME=root detecte: remplacement par un utilisateur applicatif.');
+            $changed = true;
+        }
+
+        if ($dbPass === '') {
+            // Generate a password with only safe characters (no special chars that break SQL)
+            // Only use: a-zA-Z0-9 + some safe special chars for MySQL passwords
+            $dbPass = Str::random(32, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789');
+            $envContent = $this->setEnvValue($envContent, 'DB_USERNAME', $dbUser);
+            $envContent = $this->setEnvValue($envContent, 'DB_PASSWORD', $dbPass);
+            $this->log('  DB_PASSWORD manquant: generation automatique securisee (alphanumerique).');
+            $changed = true;
+        }
+
+        if ($changed) {
+            $this->dbCredentialsGenerated = true;
+        }
+
+        return $envContent;
+    }
+
+    private function setEnvValue(string $envContent, string $key, string $value): string
+    {
+        $pattern = '/^' . preg_quote($key, '/') . '=.*/m';
+        $line = $key . '=' . $value;
+
+        if (preg_match($pattern, $envContent)) {
+            return preg_replace($pattern, $line, $envContent) ?? $envContent;
+        }
+
+        return rtrim($envContent) . "\n{$line}\n";
+    }
+
+    private function removeEnvKey(string $envContent, string $key): string
+    {
+        $pattern = '/^' . preg_quote($key, '/') . '=.*\r?$\n?/m';
+        return preg_replace($pattern, '', $envContent) ?? $envContent;
+    }
+
+    private function provisionDatabase(string $deployPath): void
+    {
+        // Get the database driver from the parsed config
+        $driver = $this->envConfig['DB_CONNECTION'] ?? 'mysql';
+        $provisioner = null;
+
+        $this->log('PROVISIONING_START: driver=' . $driver);
+        \Log::info('Deployment::provisionDatabase START', ['deployment_id' => $this->deployment->id, 'driver' => $driver]);
+
+        try {
+            // Create appropriate provisioner based on driver
+            $provisioner = DatabaseProvisionerFactory::make(
+                $driver,
+                $this->envConfig,
+                $this->ssh
+            );
+
+            $this->log('PROVISIONING_FACTORY: provisioner created');
+            \Log::info('Deployment::provisionDatabase provisioner created', ['driver' => $driver]);
+
+            // Run provisioning with logger callback
+            $provisioner->provision(function($msg) {
+                $this->log($msg);
+                \Log::info('Deployment::provisionDatabase', ['msg' => $msg]);
+            });
+
+            $this->log('PROVISIONING_SUCCESS');
+            \Log::info('Deployment::provisionDatabase SUCCESS');
+        } catch (\Exception $e) {
+            $this->log('  ⚠️  Erreur lors du provisionnement: ' . $e->getMessage());
+            \Log::error('Deployment::provisionDatabase ERROR', ['error' => $e->getMessage(), 'exception' => $e]);
+            
+            // Log warning but continue - provisioning error should not block deployment
+            // The .env will be updated with gateway and password for the container to use
+            if (!empty($this->envContent)) {
+                $this->log('  ℹ️  Continuation du déploiement malgré erreur provisioning...');
+            }
+        } finally {
+            if (!empty($this->envContent) && $provisioner) {
+                $gateway = $provisioner->getGateway();
+
+                if ($driver !== 'sqlite' && $gateway !== '') {
+                    $this->envContent = $this->setEnvValue($this->envContent, 'DB_HOST', $gateway);
+                    $this->log('  DB_HOST mis à jour: ' . $gateway);
+                    \Log::info('Deployment::provisionDatabase DB_HOST updated', ['gateway' => $gateway]);
+                }
+
+                $sharedEnvPath = "{$deployPath}/shared/.env";
+                $this->ssh->uploadContent($this->envContent, $sharedEnvPath);
+                $this->log('  .env mis à jour et uploade ✓');
+                \Log::info('Deployment::provisionDatabase .env uploaded');
+            }
+        }
     }
 
     private function ensureDockerAvailable(): void
@@ -484,10 +642,105 @@ DOCKER;
 
     private function buildDockerImage(string $releasePath, string $imageTag): void
     {
-        $this->ssh->execStreaming(
-            "cd {$releasePath} && {$this->dockerBin} build -t {$imageTag} . 2>&1",
-            fn ($line) => $this->log($line)
-        );
+        // Images de base utilisées dans le Dockerfile pour pre-pull
+        $baseImages = [
+            'node:20-alpine',
+            'php:8.2-apache',
+            'composer:2',
+        ];
+
+        // Pre-pull toutes les images avec une seule commande (plus robuste)
+        $this->log('  Pre-pull des images de base...');
+        $hasIpv6Issues = false;
+
+        // Augmenter le timeout pour le pre-pull (peut télécharger plusieurs GB)
+        $originalTimeout = 60;
+        if ($this->ssh instanceof \App\Services\SshService) {
+            $originalTimeout = 60; // sauvegarde pour restaurer après
+            $this->ssh->setTimeout(300); // 5 minutes pour le pre-pull
+        }
+
+        try {
+            // Chaîner les pulls: docker pull A && docker pull B && docker pull C
+            $pullCommand = implode(' && ', array_map(fn($img) => "{$this->dockerBin} pull {$img}", $baseImages));
+
+            $pullOutput = '';
+            $this->ssh->execStreaming(
+                $pullCommand,
+                function ($line) use (&$pullOutput) {
+                    $pullOutput .= $line . "\n";
+                    // Log chaque image
+                    if (strpos($line, 'Digest:') !== false || strpos($line, 'Status:') !== false) {
+                        $this->log("  " . trim($line));
+                    }
+                }
+            );
+            $this->log("  ✓ Toutes les images de base téléchargées");
+        } catch (\Exception $e) {
+            // Vérifier si c'est une erreur IPv6
+            $errorMsg = $e->getMessage() . "\n" . $pullOutput;
+            if (strpos($errorMsg, 'network is unreachable') !== false && strpos($errorMsg, '2606:') !== false) {
+                $hasIpv6Issues = true;
+                $this->log("  ⚠️  Pre-pull échoué en IPv6 → Fallback sans --network=host");
+            } else {
+                // Si c'est une autre erreur, on continue quand même (les images seront re-pull durant le build)
+                $this->log("  ⚠️  Pre-pull incomplet (fallback au build): " . substr($e->getMessage(), 0, 100));
+            }
+        } finally {
+            // Restaurer le timeout normal
+            if ($this->ssh instanceof \App\Services\SshService) {
+                $this->ssh->setTimeout(300); // Build timeout aussi long
+            }
+        }
+
+        // Build avec DOCKER_BUILDKIT=1 pour meilleure gestion du réseau
+        $this->log('🐳 Build de l\'image Docker avec BuildKit...');
+
+        // Si on a détecté des problèmes IPv6 lors du pre-pull, utiliser directement le fallback
+        if ($hasIpv6Issues) {
+            $this->log('⚠️  Utilisation du build IPv4-only (sans --network=host)');
+            $buildCommand = "cd {$releasePath} && DOCKER_BUILDKIT=1 {$this->dockerBin} build --pull -t {$imageTag} . 2>&1";
+        } else {
+            $buildCommand = "cd {$releasePath} && DOCKER_BUILDKIT=1 {$this->dockerBin} build --pull --network=host -t {$imageTag} . 2>&1";
+        }
+
+        $buildOutput = ''; // Déclarer avant le try pour être accessible dans le catch
+        try {
+            $this->ssh->execStreaming(
+                $buildCommand,
+                function ($line) use (&$buildOutput) {
+                    $buildOutput .= $line . "\n";
+                    $this->log($line);
+                }
+            );
+        } catch (\Exception $buildException) {
+            // Détecter si c'est une erreur IPv6 (network unreachable avec IPv6)
+            if ((strpos($buildOutput, 'network is unreachable') !== false || strpos($buildException->getMessage(), 'network is unreachable') !== false)
+                && (strpos($buildOutput, '2606:') !== false || strpos($buildException->getMessage(), '2606:') !== false)
+            ) {
+
+                $this->log('⚠️  Erreur IPv6 détectée, relance du build sans --network=host...');
+
+                // Fallback: build sans --network=host (utilise le DNS du serveur)
+                $fallbackCommand = "cd {$releasePath} && DOCKER_BUILDKIT=1 {$this->dockerBin} build --pull -t {$imageTag} . 2>&1";
+
+                try {
+                    $this->ssh->execStreaming(
+                        $fallbackCommand,
+                        fn($line) => $this->log($line)
+                    );
+                    $this->log('✓ Build réussi en fallback IPv4');
+                } catch (\Exception $fallbackException) {
+                    // Si même le fallback échoue, on relève l'exception
+                    throw new \RuntimeException(
+                        "Build Docker échoué même en fallback IPv4: " . $fallbackException->getMessage()
+                    );
+                }
+            } else {
+                // Autre erreur non-liée à IPv6
+                throw $buildException;
+            }
+        }
     }
 
     private function createDockerCompose(
@@ -550,7 +803,7 @@ DOCKER;
 
         $this->ssh->execStreaming(
             "COMPOSE_PROJECT_NAME={$projectKey} {$this->dockerBin} compose -f {$composePath} up -d --remove-orphans 2>&1",
-            fn ($line) => $this->log($line)
+            fn($line) => $this->log($line)
         );
     }
 

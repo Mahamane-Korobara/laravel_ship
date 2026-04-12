@@ -136,7 +136,11 @@ class ServerShow extends Component
         try {
             $token = Str::random(40);
             $port = (int) config('ship.agent_port', 8081);
-            $agentUrl = "http://{$this->server->ip_address}:{$port}";
+
+            // Stocker localhost:8081 au lieu de l'IP publique
+            // RemoteRunnerFactory créera un tunnel SSH pour y accéder
+            // Cela contourne les firewall/NAT sans exposer le port publiquement
+            $agentUrl = "http://127.0.0.1:{$port}";
 
             $installer = new AgentInstaller();
             $installer->install($this->server, $token, $port, $append);
@@ -149,6 +153,7 @@ class ServerShow extends Component
             ]);
 
             $append('Agent installé et actif.');
+            $append("URL: {$agentUrl} (via tunnel SSH sécurisé)");
             $this->agentResult = trim($buffer);
         } catch (\Throwable $e) {
             $append('Erreur agent : ' . $e->getMessage());

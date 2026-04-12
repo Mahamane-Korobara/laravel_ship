@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Services\GitHubService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
@@ -85,15 +86,37 @@ class ProjectImport extends Component
                 'status'      => 'idle',
             ]);
 
-            if (!$this->createGithubWebhook($user, $project, $repoFullName)) {
-                $project->delete();
-                session()->flash('error', 'Import annulé : impossible de créer le webhook GitHub.');
-                $this->dispatch('notify', message: 'Erreur lors de la création du webhook GitHub.', type: 'error');
-                return;
+            // Essayer de créer le webhook
+            $webhookSuccess = $this->createGithubWebhook($user, $project, $repoFullName);
+
+            if (!$webhookSuccess) {
+                // En env local, le webhook peut échouer (localhost non accessible par GitHub)
+                // C'est normal et attendu - on continue quand même
+                if (!app()->environment('production')) {
+                    Log::info("Projet {$repoFullName} importé sans webhook (localhost non accessible par GitHub)");
+                    session()->flash('warning', "Projet importé sans webhook. En local, les déploiements manuel sont nécessaires.");
+                    $this->dispatch(
+                        'notify',
+                        message: 'Projet importé. Webhook non configuré (localhost non accessible par GitHub). Vous pouvez déployer manuellement.',
+                        type: 'warning'
+                    );
+                    $this->redirect(route('projects.deploy', $project), navigate: true);
+                    return;
+                } else {
+                    // En production, on rejette si le webhook échoue
+                    $project->delete();
+                    session()->flash('error', 'Erreur: impossible de créer le webhook GitHub. Vérifiez votre URL et votre token.');
+                    $this->dispatch('notify', message: 'Erreur lors de la création du webhook GitHub.', type: 'error');
+                    return;
+                }
             }
 
-            session()->flash('success', "Projet importé avec succès.");
-            $this->dispatch('notify', message: 'Projet importé avec succès. Configuration disponible.', type: 'success');
+            session()->flash('success', "Projet importé avec succès. Webhook automatique configuré.");
+            $this->dispatch('notify', message: 'Projet importé et webhook configuré. Les déploiements se déclencheront automatiquement.', type: 'success');
+
+            // Invalider le cache des projets distants
+            Cache::forget("user:{$user->id}:remote-projects");
+
             $this->redirect(route('projects.deploy', $project), navigate: true);
         } catch (\Throwable $e) {
             session()->flash('error', 'Import échoué : ' . $e->getMessage());

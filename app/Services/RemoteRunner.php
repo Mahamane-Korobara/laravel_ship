@@ -4,6 +4,11 @@ namespace App\Services;
 
 interface RemoteRunner
 {
+    /**
+     * Configurer le timeout de connexion (en secondes)
+     */
+    public function setTimeout(int $seconds): self;
+
     public function exec(string $command): string;
 
     public function execStreaming(string $command, callable $onOutput): void;
@@ -14,4 +19,3 @@ interface RemoteRunner
 
     public function disconnect(): void;
 }
-
