@@ -406,7 +406,7 @@ class DeploymentService
             \Log::info('Deployment::provisionDatabase provisioner created', ['driver' => $driver]);
 
             // Run provisioning with logger callback
-            $provisioner->provision(function($msg) {
+            $provisioner->provision(function ($msg) {
                 $this->log($msg);
                 \Log::info('Deployment::provisionDatabase', ['msg' => $msg]);
             });
@@ -416,7 +416,7 @@ class DeploymentService
         } catch (\Exception $e) {
             $this->log('  ⚠️  Erreur lors du provisionnement: ' . $e->getMessage());
             \Log::error('Deployment::provisionDatabase ERROR', ['error' => $e->getMessage(), 'exception' => $e]);
-            
+
             // Log warning but continue - provisioning error should not block deployment
             // The .env will be updated with gateway and password for the container to use
             if (!empty($this->envContent)) {

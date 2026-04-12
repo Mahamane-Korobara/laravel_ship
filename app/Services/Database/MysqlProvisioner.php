@@ -46,7 +46,7 @@ class MysqlProvisioner implements DatabaseProvisioner
 
         // Try provisioning with multiple strategies
         $this->provisionMySQL($logger, $sqlScript, $dbUser, $dbPass);
-        
+
         // Verify that the user was created successfully
         $this->verifyUserCreation($logger, $dbUser);
     }
@@ -67,7 +67,7 @@ class MysqlProvisioner implements DatabaseProvisioner
                 call_user_func($logger, '  [Stratégie 1] Using sudo mysql (host system)...');
                 $cmd = "sudo -n mysql < {$tmpSqlFile} 2>&1";
                 $result = $this->execWithOutput($cmd);
-                
+
                 if ($result['success']) {
                     call_user_func($logger, '  ✓ Sudo mysql succeeded');
                     $executed = true;
@@ -81,11 +81,11 @@ class MysqlProvisioner implements DatabaseProvisioner
             if (!$executed) {
                 call_user_func($logger, '  [Stratégie 2] Using docker exec on MySQL container...');
                 $mysqlContainer = $this->findMysqlContainer($logger);
-                
+
                 if ($mysqlContainer) {
                     $cmd = "docker exec {$mysqlContainer} mysql -u root < {$tmpSqlFile} 2>&1";
                     $result = $this->execWithOutput($cmd);
-                    
+
                     if ($result['success']) {
                         call_user_func($logger, '  ✓ Docker exec succeeded');
                         $executed = true;
@@ -101,10 +101,10 @@ class MysqlProvisioner implements DatabaseProvisioner
             // Strategy 3: Docker run via 127.0.0.1 (no password)
             if (!$executed) {
                 call_user_func($logger, '  [Stratégie 3] Docker run via 127.0.0.1 (no password)...');
-                $cmd = "docker run --rm --network host -v {$tmpSqlFile}:{$tmpSqlFile}:ro mysql:8.0 " . 
-                       "mysql -h 127.0.0.1 -u root --protocol=TCP < {$tmpSqlFile} 2>&1";
+                $cmd = "docker run --rm --network host -v {$tmpSqlFile}:{$tmpSqlFile}:ro mysql:8.0 " .
+                    "mysql -h 127.0.0.1 -u root --protocol=TCP < {$tmpSqlFile} 2>&1";
                 $result = $this->execWithOutput($cmd);
-                
+
                 if ($result['success']) {
                     call_user_func($logger, '  ✓ Docker run 127.0.0.1 succeeded');
                     $executed = true;
@@ -117,10 +117,10 @@ class MysqlProvisioner implements DatabaseProvisioner
             // Strategy 4: Docker run via gateway 172.17.0.1
             if (!$executed) {
                 call_user_func($logger, '  [Stratégie 4] Docker run via gateway 172.17.0.1...');
-                $cmd = "docker run --rm --network host -v {$tmpSqlFile}:{$tmpSqlFile}:ro mysql:8.0 " . 
-                       "mysql -h 172.17.0.1 -u root --protocol=TCP < {$tmpSqlFile} 2>&1";
+                $cmd = "docker run --rm --network host -v {$tmpSqlFile}:{$tmpSqlFile}:ro mysql:8.0 " .
+                    "mysql -h 172.17.0.1 -u root --protocol=TCP < {$tmpSqlFile} 2>&1";
                 $result = $this->execWithOutput($cmd);
-                
+
                 if ($result['success']) {
                     call_user_func($logger, '  ✓ Docker run 172.17.0.1 succeeded');
                     $executed = true;
@@ -159,7 +159,7 @@ class MysqlProvisioner implements DatabaseProvisioner
 
             $executed = false;
             $passwords = [$rootPassword];
-            
+
             // Add fallback password (empty password)
             if ($rootPassword !== '') {
                 $passwords[] = '';
@@ -168,16 +168,16 @@ class MysqlProvisioner implements DatabaseProvisioner
             // Try different password combinations with different strategies
             foreach ($passwords as $pwd) {
                 if ($executed) break;
-                
+
                 $passwordArg = !empty($pwd) ? ' -p' . escapeshellarg($pwd) : '';
                 $pwdDesc = !empty($pwd) ? 'with password' : 'without password';
-                
+
                 // Try method 1: docker run with localhost (via host network)
                 call_user_func($logger, "  [Tentative docker run 127.0.0.1 {$pwdDesc}]");
-                $cmd = "docker run --rm --network host -v {$tmpSqlFile}:{$tmpSqlFile}:ro mysql:8.0 " . 
-                       "mysql -h 127.0.0.1 -u root{$passwordArg} < {$tmpSqlFile}";
+                $cmd = "docker run --rm --network host -v {$tmpSqlFile}:{$tmpSqlFile}:ro mysql:8.0 " .
+                    "mysql -h 127.0.0.1 -u root{$passwordArg} < {$tmpSqlFile}";
                 $result = $this->execWithOutput($cmd);
-                
+
                 if ($result['success']) {
                     call_user_func($logger, '  ✓ Successfully provisioned via 127.0.0.1');
                     $executed = true;
@@ -188,10 +188,10 @@ class MysqlProvisioner implements DatabaseProvisioner
 
                 // Try method 2: Connect via Docker gateway IP
                 call_user_func($logger, "  [Tentative docker run 172.17.0.1 {$pwdDesc}]");
-                $cmd = "docker run --rm --network host -v {$tmpSqlFile}:{$tmpSqlFile}:ro mysql:8.0 " . 
-                       "mysql -h 172.17.0.1 -u root{$passwordArg} < {$tmpSqlFile}";
+                $cmd = "docker run --rm --network host -v {$tmpSqlFile}:{$tmpSqlFile}:ro mysql:8.0 " .
+                    "mysql -h 172.17.0.1 -u root{$passwordArg} < {$tmpSqlFile}";
                 $result = $this->execWithOutput($cmd);
-                
+
                 if ($result['success']) {
                     call_user_func($logger, '  ✓ Successfully provisioned via 172.17.0.1');
                     $executed = true;
@@ -202,12 +202,12 @@ class MysqlProvisioner implements DatabaseProvisioner
 
                 // Try method 3: docker exec on MySQL container directly
                 $mysqlContainer = $this->findMysqlContainer($logger);
-                
+
                 if ($mysqlContainer) {
                     call_user_func($logger, "  [Tentative docker exec on {$mysqlContainer} {$pwdDesc}]");
                     $cmd = "docker exec {$mysqlContainer} mysql -u root{$passwordArg} < {$tmpSqlFile}";
                     $result = $this->execWithOutput($cmd);
-                    
+
                     if ($result['success']) {
                         call_user_func($logger, '  ✓ Successfully provisioned via docker exec');
                         $executed = true;
@@ -260,13 +260,13 @@ class MysqlProvisioner implements DatabaseProvisioner
             $cmd = "docker ps --format 'table {{.Names}}\t{{.Image}}' | grep -i mysql | head -1 | awk '{print $1}'";
             $container = trim((string) $this->ssh->exec($cmd));
             call_user_func($logger, '  Looking for MySQL container: ' . ($container ?: 'not found'));
-            
+
             if (!empty($container)) {
                 // Try to get environment variables
                 $cmd = "docker inspect {$container} --format='{{json .Config.Env}}'";
                 $rawEnv = trim((string) $this->ssh->exec($cmd));
                 call_user_func($logger, '  Raw environment retrieved, parsing...');
-                
+
                 // Parse JSON array to find MYSQL_ROOT_PASSWORD
                 $env = json_decode($rawEnv, true);
                 if (is_array($env)) {
@@ -285,10 +285,10 @@ class MysqlProvisioner implements DatabaseProvisioner
         } catch (\Exception $e) {
             call_user_func($logger, '  ⚠️  Error retrieving password: ' . $e->getMessage());
         }
-        
+
         // Fallback 1: Try with 'root' as password (common in Docker)
         call_user_func($logger, '  Fallback: trying with "root" as password');
-        
+
         // Or try connecting without password first
         return 'root';
     }
@@ -299,16 +299,16 @@ class MysqlProvisioner implements DatabaseProvisioner
             // Find any running MySQL container
             $cmd = "docker ps --filter 'ancestor=mysql:8.0' --format '{{.Names}}' | head -1";
             $container = trim((string) $this->ssh->exec($cmd));
-            
+
             if (!empty($container)) {
                 call_user_func($logger, '  Found MySQL container: ' . $container);
                 return $container;
             }
-            
+
             // Fallback: try to find by name pattern
             $cmd = "docker ps --format 'table {{.Names}}\t{{.Image}}' | grep -E '(mysql|db)' | head -1 | awk '{print $1}'";
             $container = trim((string) $this->ssh->exec($cmd));
-            
+
             if (!empty($container)) {
                 call_user_func($logger, '  Found MySQL container by pattern: ' . $container);
                 return $container;
@@ -316,7 +316,7 @@ class MysqlProvisioner implements DatabaseProvisioner
         } catch (\Exception $e) {
             call_user_func($logger, '  ⚠️  Could not find MySQL container: ' . $e->getMessage());
         }
-        
+
         return null;
     }
 
@@ -333,7 +333,7 @@ class MysqlProvisioner implements DatabaseProvisioner
         // Execute and capture both stdout and stderr
         $wrapped = "sh -lc " . escapeshellarg("({$command}) 2>&1; echo '|||EXIT_CODE:'$?");
         $fullOutput = trim((string) $this->ssh->exec($wrapped));
-        
+
         // Extract exit code from the end
         if (preg_match('/\|\|\|EXIT_CODE:(\d+)$/', $fullOutput, $matches)) {
             $exitCode = (int) $matches[1];
@@ -342,13 +342,13 @@ class MysqlProvisioner implements DatabaseProvisioner
             $exitCode = 0;
             $output = $fullOutput;
         }
-        
+
         \Log::debug('MysqlProvisioner::execWithOutput', [
             'command' => $command,
             'exit_code' => $exitCode,
             'output' => trim($output),
         ]);
-        
+
         return [
             'success' => $exitCode === 0,
             'exit_code' => $exitCode,
@@ -365,7 +365,7 @@ class MysqlProvisioner implements DatabaseProvisioner
     private function verifyUserCreation(callable $logger, string $dbUser): void
     {
         call_user_func($logger, '  Vérification de la création de l\'utilisateur...');
-        
+
         // Try to get MySQL root password again
         $rootPassword = $this->getMysqlRootPassword($logger);
         $passwords = [$rootPassword];
@@ -375,25 +375,25 @@ class MysqlProvisioner implements DatabaseProvisioner
 
         $verifySql = "SELECT user, host FROM mysql.user WHERE user='{$dbUser}';";
         $tmpVerifyFile = '/tmp/verify_mysql_' . uniqid() . '.sql';
-        
+
         try {
             $this->ssh->uploadContent($verifySql, $tmpVerifyFile);
-            
+
             foreach ($passwords as $pwd) {
                 $passwordArg = !empty($pwd) ? ' -p' . escapeshellarg($pwd) : '';
-                
+
                 // Try to verify via docker run
-                $cmd = "docker run --rm --network host -v {$tmpVerifyFile}:{$tmpVerifyFile}:ro mysql:8.0 " . 
-                       "mysql -h 172.17.0.1 -u root{$passwordArg} < {$tmpVerifyFile}";
+                $cmd = "docker run --rm --network host -v {$tmpVerifyFile}:{$tmpVerifyFile}:ro mysql:8.0 " .
+                    "mysql -h 172.17.0.1 -u root{$passwordArg} < {$tmpVerifyFile}";
                 $result = $this->execWithOutput($cmd);
-                
+
                 if ($result['success'] && strpos($result['output'], $dbUser) !== false) {
                     call_user_func($logger, '  ✓ Utilisateur ' . $dbUser . ' exists: ' . trim($result['output']));
                     $this->ssh->exec("rm -f {$tmpVerifyFile}");
                     return;
                 }
             }
-            
+
             call_user_func($logger, '  ⚠️  User verification inconclusive, proceeding anyway');
             $this->ssh->exec("rm -f {$tmpVerifyFile}");
         } catch (\Exception $e) {
