@@ -2,6 +2,8 @@
 
 Plateforme PaaS auto-hebergee pour automatiser le cycle de vie des projets Laravel.
 
+> ⚠️ **Projet en cours de développement — non terminé.** La V1 (déploiement manuel, logs temps réel) est en place ; le déploiement automatique sur webhook et d'autres fonctionnalités sont prévus en V2.
+
 ## Objectif
 - Gerer des projets Laravel sur des VPS clients.
 - Executer des deploiements reproductibles via SSH.
@@ -118,3 +120,12 @@ Migrations: `database/migrations/*`
 ## Notes
 - Les webhooks GitHub stockent les commits; le deploiement auto sera gere en V2.
 - Les pools PHP-FPM sont isoles par projet et version PHP.
+
+---
+
+## 👤 Auteur
+
+Développé par **Mahamane Korobara**, développeur full-stack.
+
+- 🌐 Portfolio & blog technique : **[sahelstack.tech](https://www.sahelstack.tech)**
+- 💼 GitHub : [@Mahamane-Korobara](https://github.com/Mahamane-Korobara)
